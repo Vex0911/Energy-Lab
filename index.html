@@ -112,6 +112,10 @@ body.gate-locked .wrap,body.gate-locked .codechip{visibility:hidden}
 #accessGate p{color:var(--muted);font-size:13px}
 #accessGate input{width:100%;margin:7px 0;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:#0b1222;color:var(--text);font:inherit}
 #accessGate .gate-error{min-height:20px;color:var(--red);font-size:12px}
+#accessGate .gate-guest{width:100%;margin-top:4px}
+.login-form{display:grid;gap:8px;max-width:360px}
+.login-form input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:#0b1222;color:var(--text);font:inherit}
+.form-error{min-height:20px;color:var(--red);font-size:12px;margin:6px 0 0}
 
 @media(max-width:720px){body{padding:12px}.main,.grid2{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr;gap:7px}.center{min-height:300px}.orb{width:160px;height:160px}.upgrade-list{max-height:min(430px,70vh)}}
 </style>
@@ -315,6 +319,20 @@ body.gate-locked .wrap,body.gate-locked .codechip{visibility:hidden}
  </section>
 
  <section id="tab-settings" hidden>
+  <section class="panel" id="settingsLoginPanel" style="margin-bottom:14px">
+   <div class="panel-head"><h2>Account login</h2><span class="muted" id="settingsLoginState"></span></div>
+   <p class="muted">Only the Owner and TestAcc accounts can log in. Guest progress and each account's progress are saved separately in this browser.</p>
+   <form id="settingsLoginForm" class="login-form">
+    <input id="settingsLoginUsername" type="text" class="nocase" autocomplete="username" maxlength="16" placeholder="Username" required>
+    <input id="settingsLoginPassword" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Password" required>
+    <button class="primary" id="settingsLoginSubmit" type="submit">Log in</button>
+   </form>
+   <p class="form-error" id="settingsLoginError" aria-live="polite"></p>
+   <div id="settingsLoginSignedIn" hidden>
+    <p class="muted" id="settingsLoginName"></p>
+    <div class="controls" style="justify-content:flex-start;margin-top:8px"><button class="danger" id="settingsLogoutBtn">Log out</button></div>
+   </div>
+  </section>
   <div class="grid2">
    <section class="panel">
     <div class="panel-head"><h2>Automation</h2></div>
@@ -373,14 +391,15 @@ body.gate-locked .wrap,body.gate-locked .codechip{visibility:hidden}
  <div class="gate-card">
   <div class="brand">ENERGY LAB // PRIVATE ACCESS</div>
   <h1 id="gateTitle">Account login</h1>
-  <p id="gateDescription">Private access is limited to the Owner and TestAcc accounts.</p>
+  <p id="gateDescription">Only the Owner and TestAcc accounts can log in. Anyone else can continue without an account: your progress is saved in this browser only and you won't appear on the leaderboards.</p>
   <form id="gateForm">
    <input id="gateUsername" type="text" class="nocase" autocomplete="username" maxlength="16" placeholder="Username" required>
    <input id="gatePassword" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Password" required>
    <button class="primary" id="gateSubmit" type="submit" style="width:100%">Log in</button>
   </form>
+  <button class="gate-guest" id="gateGuest" type="button">Continue without account</button>
   <p class="gate-error" id="gateError" aria-live="polite"></p>
-  <p class="muted">Private access is limited to the existing Owner and TestAcc accounts. Public registration is disabled.</p>
+  <p class="muted">Login is limited to the existing Owner and TestAcc accounts. Public registration is disabled.</p>
  </div>
 </div>
 <div class="modal" id="modal" hidden><div class="box"><p id="modalMsg"></p><div class="controls"><button class="primary" id="modalYes">Confirm</button><button id="modalNo">Cancel</button></div></div></div>
@@ -420,6 +439,7 @@ const SKEY = "energyLabSound40";
 const LEGACY_SAVE_KEYS = ["energyLabSave30", "energyLabSave30b", "energyLabSave30c", "energyLabSave21"];
 const LEGACY_SOUND_KEY = "energyLabSound30";
 const SESSION_TOKEN_KEY = "energyLabSessionToken56";
+const GUEST_KEY = "energyLabGuestMode56";
 let USERNAME_KEY = "energyLabUsername56";
 const SID = Math.random().toString(36).slice(2) + Date.now().toString(36);
 const SELL_RETURN = 0.9;
@@ -654,10 +674,23 @@ const ID_RE = /^EL-[0-9A-F]{8}(?:-[0-9A-F]{4}){3}-[0-9A-F]{12}$/;
 const USERNAME_RE = /^[A-Za-z0-9_]{3,16}$/;
 const OWNER_PLAYER_ID = "EL-13B6729B-7DF0-4369-A078-FAA9831EA890";
 const TESTACC_PLAYER_ID = "EL-06CC7F1E-0B48-4A28-85E5-FE70805620DB";
+// Only these two accounts may use the login feature. Every sign-in path checks this list.
+const ALLOWED_ACCOUNT_IDS = [OWNER_PLAYER_ID, TESTACC_PLAYER_ID];
+const isAllowedAccount = id => ALLOWED_ACCOUNT_IDS.includes(id);
+const NOT_ALLOWED_MSG = "This account isn't allowed to log in. Only the Owner and TestAcc accounts can use this game.";
+// If the server hands out a session to any other account, cancel it straight away.
+function rejectSession(token) { if (token) api("logout_session", {p_session_token:token}).catch(() => {}); }
 let SESSION_TOKEN = store.get(SESSION_TOKEN_KEY) || "";
 let PLAYER_ID = "";
 let IS_OWNER = false;
 let IS_TESTACC = false;
+let GUEST = false;
+function setGuestSaveKeys() {
+  KEY = "energyLabSave_GUEST";
+  BAK1 = KEY + "_b";
+  BAK2 = KEY + "_c";
+  USERNAME_KEY = "energyLabUsername56_GUEST";
+}
 function setSaveKeysForPlayer(id) {
   const suffix = id.replace(/[^A-Z0-9]/g, "");
   KEY = "energyLabSave_" + suffix;
@@ -667,6 +700,9 @@ function setSaveKeysForPlayer(id) {
 }
 function applyIdentity(id, token, username) {
   if (!ID_RE.test(String(id || "")) || !token) throw new Error("The server returned an invalid account session.");
+  if (!isAllowedAccount(id)) throw new Error(NOT_ALLOWED_MSG);
+  if (GUEST) { save(); GUEST = false; } // keep the guest progress under its own save before switching
+  store.remove(GUEST_KEY);
   PLAYER_ID = id;
   SESSION_TOKEN = token;
   IS_OWNER = id === OWNER_PLAYER_ID;
@@ -684,6 +720,8 @@ function applyIdentity(id, token, username) {
   if (profile.username) store.set(USERNAME_KEY, profile.username);
   lastSubmitSig = ""; lastSubmitAt = 0; lastSubmitOk = 0;
   Object.keys(lbCache).forEach(k => delete lbCache[k]);
+  $("volume").value = Math.round(state.settings.volume * 100);
+  renderAch(); renderCodes();
   refreshIdentityUI();
   renderProfile();
   refreshProfile();
@@ -691,42 +729,43 @@ function applyIdentity(id, token, username) {
   loadBoard(true);
   ui();
 }
+async function loginWithCredentials(username, password) {
+  if (!USERNAME_RE.test(username)) throw new Error("Enter a valid account username.");
+  if (password.length < 8) throw new Error("Enter the account password (at least 8 characters).");
+  if (!onlineOn()) throw new Error("The game server is unavailable. Login needs a server connection.");
+  const saltInfo = await api("get_login_salt", {p_username:username});
+  if (!saltInfo || saltInfo.ok === false || !saltInfo.salt || !saltInfo.iterations) throw new Error("That account is unavailable or its password login is not configured.");
+  const digest = await passwordDigest(password, saltInfo.salt, Number(saltInfo.iterations));
+  const result = await api("login_with_password", {p_username:username, p_password_hash:digest});
+  if (!result || result.ok !== true) throw new Error("Incorrect username or password.");
+  const token = result.session_token || result.token;
+  const id = result.player_id || result.id;
+  if (!ID_RE.test(String(id || "")) || !token) throw new Error("The server returned an invalid account session.");
+  if (!isAllowedAccount(id)) { rejectSession(token); throw new Error(NOT_ALLOWED_MSG); }
+  applyIdentity(id, token, result.username || username);
+}
+// Play without an account: progress is saved under a separate guest save, and nothing is sent to the server.
+function enterGuest(remember) {
+  if (PLAYER_ID) return;
+  GUEST = true;
+  if (remember) store.set(GUEST_KEY, "1");
+  setGuestSaveKeys();
+  state = fresh(); load();
+  profile.state = "unknown"; profile.username = "";
+  Object.keys(lbCache).forEach(k => delete lbCache[k]);
+  $("volume").value = Math.round(state.settings.volume * 100);
+  renderAch(); renderCodes();
+  refreshIdentityUI(); renderProfile(); renderBoard(); ui();
+  releaseAccessGate();
+}
 async function initAccessGate() {
-  $("gateUsername").focus();
-  // Reuse a saved server session only after the server validates it.
-  if (SESSION_TOKEN && onlineOn()) {
-    try {
-      const current = await api("get_player_profile", {p_session_token:SESSION_TOKEN});
-      const id = current && (current.player_id || current.id);
-      if (current && current.ok !== false && ID_RE.test(String(id || ""))) {
-        applyIdentity(id, SESSION_TOKEN, current.username || "");
-        releaseAccessGate();
-        return;
-      }
-    } catch (e) {}
-    SESSION_TOKEN = "";
-    store.remove(SESSION_TOKEN_KEY);
-  }
   $("gateForm").addEventListener("submit", async e => {
     e.preventDefault();
-    const username = $("gateUsername").value.trim();
-    const password = $("gatePassword").value;
     const error = $("gateError");
     error.textContent = "";
     $("gateSubmit").disabled = true;
     try {
-      if (!USERNAME_RE.test(username)) throw new Error("Enter a valid account username.");
-      if (password.length < 8) throw new Error("Enter the account password (at least 8 characters).");
-      if (!onlineOn()) throw new Error("The game server is unavailable. Login needs a server connection.");
-      const saltInfo = await api("get_login_salt", {p_username:username});
-      if (!saltInfo || saltInfo.ok === false || !saltInfo.salt || !saltInfo.iterations) throw new Error("That account is unavailable or its password login is not configured.");
-      const digest = await passwordDigest(password, saltInfo.salt, Number(saltInfo.iterations));
-      const result = await api("login_with_password", {p_username:username, p_password_hash:digest});
-      if (!result || result.ok !== true) throw new Error("Incorrect username or password.");
-      const token = result.session_token || result.token;
-      const id = result.player_id || result.id;
-      if (!ID_RE.test(String(id || "")) || !token || (id !== OWNER_PLAYER_ID && id !== TESTACC_PLAYER_ID)) throw new Error("The server returned an account that is not allowed in this private build.");
-      applyIdentity(id, token, result.username || username);
+      await loginWithCredentials($("gateUsername").value.trim(), $("gatePassword").value);
       releaseAccessGate();
       $("gatePassword").value = "";
       toast("Logged in successfully.");
@@ -737,6 +776,44 @@ async function initAccessGate() {
       $("gateSubmit").disabled = false;
     }
   });
+  $("gateGuest").addEventListener("click", () => enterGuest(true));
+  $("settingsLoginForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const error = $("settingsLoginError");
+    error.textContent = "";
+    $("settingsLoginSubmit").disabled = true;
+    try {
+      await loginWithCredentials($("settingsLoginUsername").value.trim(), $("settingsLoginPassword").value);
+      $("settingsLoginUsername").value = ""; $("settingsLoginPassword").value = "";
+      toast("Logged in successfully.");
+    } catch (err) {
+      error.textContent = err && err.message ? err.message : "Login failed. Check your username and password.";
+      $("settingsLoginPassword").select();
+    } finally {
+      $("settingsLoginSubmit").disabled = false;
+    }
+  });
+  $("settingsLogoutBtn").addEventListener("click", () => logout());
+  $("gateUsername").focus();
+  // Reuse a saved server session only after the server validates it.
+  if (SESSION_TOKEN && onlineOn()) {
+    try {
+      const current = await api("get_player_profile", {p_session_token:SESSION_TOKEN});
+      const id = current && (current.player_id || current.id);
+      if (current && current.ok !== false && ID_RE.test(String(id || ""))) {
+        if (!isAllowedAccount(id)) { rejectSession(SESSION_TOKEN); throw new Error(NOT_ALLOWED_MSG); }
+        applyIdentity(id, SESSION_TOKEN, current.username || "");
+        releaseAccessGate();
+        return;
+      }
+    } catch (e) {
+      if (e && e.message === NOT_ALLOWED_MSG) $("gateError").textContent = NOT_ALLOWED_MSG;
+    }
+    SESSION_TOKEN = "";
+    store.remove(SESSION_TOKEN_KEY);
+  }
+  // A returning guest goes straight back in.
+  if (store.get(GUEST_KEY) === "1" && !PLAYER_ID) enterGuest(false);
 }
 
 const zero = list => Object.fromEntries(list.map(x => [x, 0]));
@@ -887,7 +964,7 @@ function rotateBackups(now) {
   }
 }
 function save() {
-  if (!PLAYER_ID) return false;
+  if (!PLAYER_ID && !GUEST) return false;
   if (conflict) return false;
   if (!sane()) { saveFailed = true; updateStatus(); return false; }
   try {
@@ -1278,9 +1355,10 @@ function renderProfile() {
   const on = onlineOn();
   $("lbSetup").hidden = on;
   $("lbConn").textContent = !on ? "Server: not connected" : profile.state === "offline" ? "Server: unreachable" : "Server: connected";
-  $("lbName").textContent = profile.username || "Not set";
+  $("lbName").textContent = profile.username || (GUEST ? "Guest" : "Not set");
   let info;
   if (!on) info = "Online features are off until the Supabase details are added.";
+  else if (!PLAYER_ID) info = GUEST ? "You're playing without an account, so your score isn't on the leaderboards. Log in from Settings to appear on them." : "Log in to appear on the leaderboards.";
   else if (profile.state === "mismatch") info = "This account could not be verified. Log in again.";
   else if (syncError) info = "Score sync failed (" + syncError + "). It will retry automatically.";
   else if (!profile.username) info = "This account does not have a username assigned yet. Contact the owner.";
@@ -1405,6 +1483,7 @@ v.textContent = row.value === "TEST"
 function onLeaderboardOpen() { lbOpenedAt = Date.now(); refreshProfile(); loadBoard(false); }
 
 function logout() {
+  save(); // keep the account's latest progress before signing out
   const token = SESSION_TOKEN;
   SESSION_TOKEN = "";
   store.remove(SESSION_TOKEN_KEY);
@@ -1560,8 +1639,13 @@ for (const b of LB_BOARDS) {
 }
 
 function refreshIdentityUI() {
-  $("accountName").textContent = !PLAYER_ID ? "Not signed in" : IS_OWNER ? "Owner account · Vex" : IS_TESTACC ? "TestAcc account" : "Unknown account";
+  $("accountName").textContent = !PLAYER_ID ? (GUEST ? "Guest · playing without an account" : "Not signed in") : IS_OWNER ? "Owner account · Vex" : IS_TESTACC ? "TestAcc account" : "Unknown account";
   $("logoutBtn").disabled = !SESSION_TOKEN;
+  $("settingsLoginForm").hidden = !!PLAYER_ID;
+  $("settingsLoginError").hidden = !!PLAYER_ID;
+  $("settingsLoginSignedIn").hidden = !PLAYER_ID;
+  $("settingsLoginState").textContent = PLAYER_ID ? "Signed in" : GUEST ? "Playing as guest" : "Signed out";
+  $("settingsLoginName").textContent = PLAYER_ID ? "Signed in as " + (IS_OWNER ? "the Owner account" : IS_TESTACC ? "the TestAcc account" : "an account") + (profile.username ? " (" + profile.username + ")" : "") + "." : "";
   $("ownerBadge").hidden = !IS_OWNER;
   $("adminNav").hidden = !(IS_OWNER || IS_TESTACC);
   $("testLabPanel").hidden = !IS_TESTACC;
