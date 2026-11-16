@@ -1470,14 +1470,20 @@ function renderBoard() {
     const d = el("div", "lbrow" + (row.is_you ? " you" : "")), a = el("span", "rk"), b = el("span", "nm"), v = el("span", "vl");
     a.textContent = "#" + row.rank; 
     b.textContent = row.username + (row.is_you ? " (you)" : ""); 
-v.textContent = row.value === "TEST"
-  ? "TEST"
-  : lbBoard === 'lifetime_energy'
-    ? fmt(Number(row.value))
-    : lbBoard === 'playtime'
-      ? fmtTime(Number(row.value))
-      : Number(row.value).toLocaleString();    d.append(a, b, v); root.append(d);
+v.textContent = (() => {
+  const raw = row.value;
+
+  // If it’s not a valid number, just show the text as-is
+  const num = Number(raw);
+  if (!Number.isFinite(num)) {
+    return raw;
   }
+
+  // It is a real number → format it nicely
+  if (lbBoard === 'lifetime_energy') return fmt(num);
+  if (lbBoard === 'playtime') return fmtTime(num);
+  return num.toLocaleString();
+})();
   $("lbMeta").textContent = "Top " + c.rows.length + " · updated " + ago(c.t);
 }
 function onLeaderboardOpen() { lbOpenedAt = Date.now(); refreshProfile(); loadBoard(false); }
