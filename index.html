@@ -93,7 +93,7 @@ details.pick summary{cursor:pointer;font-weight:700;font-size:13px}
 .lbrow .rk{color:var(--muted);font-weight:800}
 .lbrow:nth-child(1) .rk{color:#ffd166}.lbrow:nth-child(2) .rk{color:#d6dde8}.lbrow:nth-child(3) .rk{color:#e0a070}
 .lbrow .nm{overflow-wrap:anywhere}
-.lbrow .vl{font-weight:800;font-variant-numeric:tabular-nums}
+.lbrow .vl{font-weight:800;font-variant-numeric:tabular-nums;text-align:right;overflow-wrap:anywhere;max-width:45%}
 .gamebtn{display:block;width:100%;text-align:left;padding:10px 12px;border-radius:12px}
 .gamebtn b{display:block;font-size:14px}.gamebtn small{color:var(--muted);font-size:11px}
 .gamebtn.on{background:#143a4a;border-color:#3aa7c2}
@@ -248,7 +248,7 @@ body.gate-locked .wrap,body.gate-locked .codechip{visibility:hidden}
  <section id="tab-codes" hidden>
   <section class="panel">
    <div class="panel-head"><h2>Codes</h2><span class="muted" id="codeCount"></span></div>
-   <p class="muted">Codes pop up now and then while you play. You may see ones you already used, and codes can't be reused. An Auto-Claim upgrade in the Rebirth Shop can redeem them for you.</p>
+   <p class="muted">Codes pop up now and then while you play. Only unused codes are offered, and codes can't be reused. An Auto-Claim upgrade in the Rebirth Shop can redeem them for you.</p>
    <div class="row"><input type="text" id="codeInput" placeholder="ENTER CODE" maxlength="24" autocomplete="off"><button class="primary" id="redeemBtn">Redeem</button></div>
    <div id="codeList"></div>
   </section>
@@ -1018,7 +1018,7 @@ function sanitize(d) {
 }
 function load() {
   let found = null, from = "", migrated = false;
-  const keys = [KEY, BAK1, BAK2];
+  const keys = [KEY, BAK1, BAK2, ...LEGACY_SAVE_KEYS];
   for (const k of keys) {
     const raw = store.get(k); if (!raw) continue;
     try {
@@ -1039,6 +1039,7 @@ function load() {
   const earned = rate(true) * elapsed;
   if (earned > 0) { state.energy += earned; state.lifetime += earned; toast("Welcome back! +" + fmt(earned) + " offline energy."); }
   if (migrated) {
+    for (const k of LEGACY_SAVE_KEYS) store.remove(k);
     toast("V5 save system upgraded. Your existing progress was preserved.");
   } else if (from !== KEY) {
     toast("Main save was damaged. Restored from backup.");
@@ -1342,13 +1343,13 @@ let lastSubmitAt = 0, lastSubmitSig = "", lastSubmitOk = 0, lastSubmitLife = 0, 
 let lbBoard = "ascensions", lbOpenedAt = 0;
 const lbCache = {};
 
-// Added Lifetime Energy to leaderboard boards list
+// Numeric board formatting. Non-numeric values are displayed verbatim.
 const LB_BOARDS = [
-  {id:"ascensions", label:"Ascensions"}, 
-  {id:"rebirths", label:"Total rebirths"}, 
-  {id:"challenges", label:"Challenges"},
-  {id:"lifetime_energy", label:"Lifetime Energy"},
-  {id:"playtime", label:"Playtime"}
+  {id:"ascensions", label:"Ascensions", format:"int"},
+  {id:"rebirths", label:"Total rebirths", format:"int"},
+  {id:"challenges", label:"Challenges", format:"int"},
+  {id:"lifetime_energy", label:"Lifetime Energy", format:"num"},
+  {id:"playtime", label:"Playtime", format:"time"}
 ];
 
 function renderProfile() {
@@ -1395,13 +1396,33 @@ async function setServerBoost(multiplier, seconds) {
   }
 }
 
+// Preserve the account's local save before returning to the login gate.
+function handleSessionInvalid() {
+  if (!PLAYER_ID && !SESSION_TOKEN) return;
+  save();
+  const token = SESSION_TOKEN;
+  SESSION_TOKEN = "";
+  store.remove(SESSION_TOKEN_KEY);
+  if (token) api("logout_session", {p_session_token:token}).catch(() => {});
+  PLAYER_ID = ""; IS_OWNER = false; IS_TESTACC = false;
+  profile.state = "signedout"; profile.username = "";
+  syncError = ""; lastSubmitSig = ""; lastSubmitOk = 0; lastSubmitAt = 0;
+  refreshIdentityUI();
+  renderProfile();
+  $("gateError").textContent = "Your session expired. Please log in again.";
+  $("gatePassword").value = "";
+  $("accessGate").hidden = false;
+  document.body.classList.add("gate-locked");
+}
+
 async function refreshProfile() {
   if (!PLAYER_ID || !SESSION_TOKEN) { profile.state = "unknown"; renderProfile(); return; }
   if (!onlineOn()) { renderProfile(); return; }
   try {
-    if (!SESSION_TOKEN || !PLAYER_ID) { profile.state = "unknown"; renderProfile(); return; }
     const r = await api("get_player_profile", {});
-    if (!r || r.ok === false || (r.player_id && r.player_id !== PLAYER_ID)) { profile.state = "offline"; }
+    if (r && r.ok === false && r.error === "invalid_session") { handleSessionInvalid(); return; }
+    if (r && r.player_id && r.player_id !== PLAYER_ID) { handleSessionInvalid(); return; }
+    if (!r || r.ok === false) { profile.state = "offline"; }
     else { profile.state = "ok"; profile.username = r.username || ""; store.set(USERNAME_KEY, profile.username); }
     syncError = "";
   } catch (e) { profile.state = "offline"; syncError = e.message; }
@@ -1421,12 +1442,13 @@ async function submitScore(force) {
   if (!force && sig === lastSubmitSig && !lifeStale) return;
   if (now - lastSubmitAt < 20000) return;
   submitting = true; lastSubmitAt = now;
+  let sessionExpired = false;
   const lifeSent = Number.isFinite(state.lifetime) ? state.lifetime : 0;
   const playSent = Math.floor(Number.isFinite(state.stats.playtime) ? state.stats.playtime : 0);
   try {
     const r = await api("submit_score", {
-      p_ascensions: state.ascensions, 
-      p_total_rebirths: state.totalRebirths, 
+      p_ascensions: state.ascensions,
+      p_total_rebirths: state.totalRebirths,
       p_challenges: state.challenge.done.length,
       p_lifetime_energy: lifeSent,
       p_playtime: playSent
@@ -1435,12 +1457,13 @@ async function submitScore(force) {
       lastSubmitSig = sig; lastSubmitOk = Date.now(); lastSubmitLife = lifeSent; lastSubmitPlay = playSent; syncError = "";
       Object.keys(lbCache).forEach(k => delete lbCache[k]); // our own score just changed, so cached boards are stale
     }
-    else if (r && r.error === "invalid_session") profile.state = "offline";
+    else if (r && r.error === "invalid_session") { sessionExpired = true; }
     else if (r && r.error === "bad_values") { lastSubmitSig = sig; lastSubmitLife = lifeSent; lastSubmitPlay = playSent; }
     else if (r && r.error === "rate_limited") { /* try again on the next check */ }
     else if (r && r.error === "not_registered") profile.state = "unregistered";
   } catch (e) { syncError = e.message; }
-  submitting = false; renderProfile();
+  submitting = false;
+  if (sessionExpired) handleSessionInvalid(); else renderProfile();
 }
 let lastBoardFetch = 0;
 async function loadBoard(force) {
@@ -1459,25 +1482,39 @@ async function loadBoard(force) {
   }
   if (board === lbBoard) renderBoard();
 }
+
+// display overrides formatting. Non-numeric values pass through unchanged.
+function fmtLbValue(kind, raw) {
+  if (raw === null || raw === undefined) return "—";
+  if (typeof raw === "string" && raw.trim() === "") return "—";
+  const k = kind || "int";
+  if (k === "raw") return String(raw);
+  if (typeof raw === "string" && raw.trim() !== "" && !/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(raw.trim())) return raw;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n)) return String(raw);
+  if (k === "num") return fmt(n);
+  if (k === "time") return fmtTime(n);
+  return n.toLocaleString(undefined, {maximumFractionDigits:2});
+}
 function renderBoard() {
   const root = $("lbList"); root.innerHTML = "";
   document.querySelectorAll("#lbBoards button").forEach(b => b.classList.toggle("on", b.dataset.board === lbBoard));
   if (!onlineOn()) { $("lbMeta").textContent = "Connect the server to see rankings."; return; }
   const c = lbCache[lbBoard];
   if (!c) return;
+  const board = LB_BOARDS.find(b => b.id === lbBoard) || {id:lbBoard, label:lbBoard, format:"int"};
   if (!c.rows.length) { const p = el("p", "muted"); p.textContent = "No ranked players yet. Be the first!"; root.append(p); }
-  for (const row of c.rows) {
+  c.rows.forEach((row, i) => {
+    const rank = row.rank !== null && row.rank !== undefined && Number.isFinite(Number(row.rank)) ? Number(row.rank) : i + 1;
     const d = el("div", "lbrow" + (row.is_you ? " you" : "")), a = el("span", "rk"), b = el("span", "nm"), v = el("span", "vl");
-    a.textContent = "#" + row.rank; 
-    b.textContent = row.username + (row.is_you ? " (you)" : ""); 
-v.textContent = row.value === "TEST"
-  ? "TEST"
-  : lbBoard === 'lifetime_energy'
-    ? fmt(Number(row.value))
-    : lbBoard === 'playtime'
-      ? fmtTime(Number(row.value))
-      : Number(row.value).toLocaleString();    d.append(a, b, v); root.append(d);
-  }
+    a.textContent = "#" + rank;
+    b.textContent = (row.username || "Unknown") + (row.is_you ? " (you)" : "");
+    v.textContent = row.display !== null && row.display !== undefined
+      ? String(row.display)
+      : fmtLbValue(row.format || board.format, row.value);
+    if (row.title) v.title = String(row.title);
+    d.append(a, b, v); root.append(d);
+  });
   $("lbMeta").textContent = "Top " + c.rows.length + " · updated " + ago(c.t);
 }
 function onLeaderboardOpen() { lbOpenedAt = Date.now(); refreshProfile(); loadBoard(false); }
@@ -1924,9 +1961,12 @@ setInterval(() => {
   }
   if (now >= nextCode) {
     nextCode = now + rand(CODE_NEXT[0], CODE_NEXT[1]);
-    const c = CODES[Math.floor(Math.random() * CODES.length)];
-    if (state.unlocks.autoClaim && state.settings.autoClaim) redeem(c.code, true);
-    else { $("chipCode").textContent = c.code; $("codeChip").hidden = false; chipUntil = now + 20000; }
+    const unused = CODES.filter(c => !state.codes.includes(c.code));
+    if (unused.length) {
+      const c = unused[Math.floor(Math.random() * unused.length)];
+      if (state.unlocks.autoClaim && state.settings.autoClaim) redeem(c.code, true);
+      else { $("chipCode").textContent = c.code; $("codeChip").hidden = false; chipUntil = now + 20000; }
+    }
   }
   if (chipUntil && now > chipUntil) { $("codeChip").hidden = true; chipUntil = 0; }
   if (now - lastOnlineCheck >= 5000) { lastOnlineCheck = now; submitScore(false); renderProfile(); refreshServerBoost();
@@ -1945,8 +1985,8 @@ window.addEventListener("beforeunload", save);
 </script>
 
 <script>
-  // Suppress the browser's default right-click context menu in Energy Lab.
-  document.addEventListener("contextmenu", (event) => event.preventDefault());
+  // Suppress the context menu only on the energy orb.
+  document.getElementById("orb").addEventListener("contextmenu", event => event.preventDefault());
 </script>
 </body>
 </html>
