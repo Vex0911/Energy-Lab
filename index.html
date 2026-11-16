@@ -1468,82 +1468,34 @@ function renderBoard() {
   if (!c.rows.length) { const p = el("p", "muted"); p.textContent = "No ranked players yet. Be the first!"; root.append(p); }
   for (const row of c.rows) {
     const d = el("div", "lbrow" + (row.is_you ? " you" : "")), a = el("span", "rk"), b = el("span", "nm"), v = el("span", "vl");
-    a.textContent = "#" + row.rank; 
-    b.textContent = row.username + (row.is_you ? " (you)" : ""); 
-v.textContent = (() => {
-  const raw = row.value;
+    a.textContent = "#" + row.rank;
+    b.textContent = row.username + (row.is_you ? " (you)" : "");
 
-  // If it’s not a valid number, just show the text as-is
-  const num = Number(raw);
-  if (!Number.isFinite(num)) {
-    return raw;
+    v.textContent = (() => {
+      const raw = row.value;
+
+      // If it’s not a valid number, just show the text as-is
+      const num = Number(raw);
+      if (!Number.isFinite(num)) {
+        return raw;
+      }
+
+      // It is a real number → format it nicely
+      if (lbBoard === 'lifetime_energy') return fmt(num);
+      if (lbBoard === 'playtime') return fmtTime(num);
+      return num.toLocaleString();
+    })();
+
+    d.append(a, b, v);
+    root.append(d);
   }
+  $("lbMeta").textContent = c.rows.length + " players · updated " + ago(c.t);
+}
 
   // It is a real number → format it nicely
   if (lbBoard === 'lifetime_energy') return fmt(num);
   if (lbBoard === 'playtime') return fmtTime(num);
   return num.toLocaleString();
-})();
-  $("lbMeta").textContent = "Top " + c.rows.length + " · updated " + ago(c.t);
-}
-function onLeaderboardOpen() { lbOpenedAt = Date.now(); refreshProfile(); loadBoard(false); }
-
-function logout() {
-  save(); // keep the account's latest progress before signing out
-  const token = SESSION_TOKEN;
-  SESSION_TOKEN = "";
-  store.remove(SESSION_TOKEN_KEY);
-  if (token) api("logout_session", {p_session_token:token}).catch(() => {});
-  PLAYER_ID = ""; IS_OWNER = false; IS_TESTACC = false;
-  profile.state = "unknown"; profile.username = "";
-  $("gateUsername").value = ""; $("gatePassword").value = ""; $("gateError").textContent = "";
-  $("accessGate").hidden = false;
-  document.body.classList.add("gate-locked");
-  refreshIdentityUI();
-  renderProfile();
-}
-
-function makeBar(kind) {
-  const bar = el("div", "bulkbar " + kind);
-  const lab = el("span", "muted"); lab.textContent = kind === "buy" ? "Buy:" : "Sell (-10%):"; bar.append(lab);
-  const modes = kind === "buy" ? ["1","5","10","max","custom"] : ["1","5","10","all","custom"];
-  const names = {max:"Max", all:"All", custom:"Custom"};
-  for (const m of modes) {
-    const b = el("button"); b.dataset.kind = kind; b.dataset.mode = m; b.textContent = names[m] || m;
-    b.addEventListener("click", () => { bulk[kind].mode = m; ui(); });
-    bar.append(b);
-  }
-  const inp = el("input"); inp.type = "number"; inp.min = "1"; inp.step = "1"; inp.value = bulk[kind].custom; inp.dataset.kind = kind;
-  inp.setAttribute("aria-label", "Custom " + kind + " amount");
-  inp.addEventListener("input", () => {
-    bulk[kind].custom = inp.value; bulk[kind].mode = "custom";
-    document.querySelectorAll('.bulkbar input[data-kind="' + kind + '"]').forEach(x => { if (x !== inp) x.value = inp.value; });
-    ui();
-  });
-  bar.append(inp);
-  return bar;
-}
-document.querySelectorAll(".bulk-holder").forEach(h => h.append(makeBar("buy"), makeBar("sell")));
-
-const upRefs = upgrades.map(u => ({u}));
-(function buildUpgrades() {
-  const root = $("upgrades");
-  const groups = [["Click upgrades","click"],["Generators","rate"]];
-  for (const [label, kind] of groups) {
-    const h = el("h3"); h.className = "group"; h.textContent = label; root.append(h);
-    upgrades.filter(u => u.kind === kind).forEach(u => {
-      const r = upRefs.find(x => x.u === u);
-      r.row = el("div", "upgrade");
-      const info = el("div"); r.h = el("h3"); r.p = el("p"); r.p.textContent = u.desc; info.append(r.h, r.p);
-      const acts = el("div", "acts");
-      r.buy = el("button", "buy"); r.buy.innerHTML = "<b></b><small></small>"; r.buyB = r.buy.firstChild; r.buyS = r.buy.lastChild;
-      r.sell = el("button", "buy"); r.sell.innerHTML = "<b></b><small></small>"; r.sellB = r.sell.firstChild; r.sellS = r.sell.lastChild;
-      r.buy.addEventListener("click", () => { if (buyUp(u)) { playClick(); checkAch(); ui(); save(); } });
-      r.sell.addEventListener("click", () => sellUp(u));
-      r.buy.setAttribute("aria-label", "Buy " + u.name); r.sell.setAttribute("aria-label", "Sell " + u.name);
-      acts.append(r.buy, r.sell); r.row.append(info, acts); root.append(r.row);
-    });
-  }
 })();
 function buildShop(rootId, items) {
   const root = $(rootId);
