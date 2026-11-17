@@ -1624,7 +1624,7 @@ function renderBoard() {
     const d = el("div", "lbrow" + (row.is_you ? " you" : "") + (pinned ? " pin" : "") + (!pinned && rank <= 3 ? " r" + rank : "")), a = el("span", "rk"), b = el("span", "nm"), v = el("span", "vl"), m = el("span", "mc");
     a.textContent = pinned ? "★" : "#" + rank;
     b.textContent = (row.username || "Unknown") + (pinned ? " · test" : "") + (row.is_you ? " (you)" : "");
-    v.textContent = row.display !== null && row.display !== undefined
+    v.textContent = pinned ? "TEST" : row.display !== null && row.display !== undefined
       ? String(row.display)
       : fmtLbValue(row.format || board.format, row.value);
     if (row.title) v.title = String(row.title);
