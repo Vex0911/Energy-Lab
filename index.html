@@ -383,7 +383,7 @@ select{padding:9px 11px;border-radius:10px;border:1px solid var(--line);backgrou
    <form id="settingsLoginForm" class="login-form">
     <input id="settingsLoginUsername" type="text" class="nocase" autocomplete="username" maxlength="16" placeholder="Username" required>
     <input id="settingsLoginPassword" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Password" required>
-    <input id="settingsLoginPasswordConfirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="Confirm password" required hidden>
+    <input id="settingsLoginPasswordConfirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="Confirm password" hidden>
     <button class="primary" id="settingsLoginSubmit" type="submit">Log in</button>
    </form>
    <p class="form-error" id="settingsLoginError" aria-live="polite"></p>
@@ -455,7 +455,7 @@ select{padding:9px 11px;border-radius:10px;border:1px solid var(--line);backgrou
   <form id="gateForm">
    <input id="gateUsername" type="text" class="nocase" autocomplete="username" maxlength="16" placeholder="Username" required>
    <input id="gatePassword" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Password" required>
-   <input id="gatePasswordConfirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="Confirm password" required hidden>
+   <input id="gatePasswordConfirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="Confirm password" hidden>
    <button class="primary" id="gateSubmit" type="submit" style="width:100%">Log in</button>
   </form>
   <p class="gate-error" id="gateError" aria-live="polite"></p>
@@ -875,6 +875,8 @@ async function initAccessGate() {
       }
     });
   }
+  setMode(AUTH.gate, store.get("energyLabHasAccount6") === "1" ? "login" : "register");
+  setMode(AUTH.settings, "login");
   $("settingsLogoutBtn").addEventListener("click", () => logout());
   $("gateUsername").focus();
   // Reuse a saved server session only after the server validates it.
@@ -894,7 +896,6 @@ async function initAccessGate() {
     SESSION_TOKEN = "";
     store.remove(SESSION_TOKEN_KEY);
   }
-  setMode(AUTH.gate, store.get("energyLabHasAccount6") === "1" ? "login" : "register");
 }
 
 const zero = list => Object.fromEntries(list.map(x => [x, 0]));
