@@ -120,6 +120,11 @@ body.gate-locked .wrap,body.gate-locked .codechip{visibility:hidden}
 .form-error{min-height:20px;color:var(--red);font-size:12px;margin:6px 0 0}
 
 select{padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:#0b1222;color:var(--text);font:inherit}
+.orb.custom{background-color:#0b1222}
+.autoctl{background:#0f1a30;border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:0 0 8px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#2fd27a;margin-right:6px;vertical-align:middle}.dot.off{background:#4b5671}
+.chatmsg img.big{max-width:100%;max-height:none;cursor:zoom-out}
+.chatmsg img{max-width:240px;max-height:240px;border-radius:8px;display:block;margin-top:4px;cursor:zoom-in}.chatmsg.pending{opacity:.6}.chatmsg .mod{margin-left:6px}.chatmsg .mod button{padding:0 6px;font-size:11px}.chatrow .badge{float:right;background:#e0575b;color:#fff;border-radius:9px;padding:0 6px;font-size:11px}
 .boost.announce{background:linear-gradient(90deg,#0e7490,#2563eb)}
 .chatlog{height:340px;overflow:auto;background:#0b1222;border:1px solid var(--line);border-radius:12px;padding:8px;display:flex;flex-direction:column;gap:6px}
 .chatmsg{max-width:80%;align-self:flex-start;background:#1b2742;border-radius:12px;padding:6px 10px}
@@ -134,7 +139,7 @@ select{padding:9px 11px;border-radius:10px;border:1px solid var(--line);backgrou
 </head>
 <body class="gate-locked">
 <div class="wrap">
- <div class="top"><div><div class="brand">ENERGY LAB // 6.0</div><div class="sub">Energy Lab V6.0 Release</div></div><div class="sub" id="saveStatus">autosave ready</div></div>
+ <div class="top"><div><div class="brand">ENERGY LAB // 6.1</div><div class="sub">Energy Lab V6.1 Release</div></div><div class="sub" id="saveStatus">autosave ready</div></div>
  <div class="warn" id="storeWarn" hidden>Saving isn't fully available in this embedded view, so progress may only last until you close the tab. Go to Settings and use Export save file or Copy save code to keep your progress.</div>
  <div class="boost announce" id="announce" hidden></div>
  <div class="boost" id="boost" hidden></div>
@@ -171,6 +176,7 @@ select{padding:9px 11px;border-radius:10px;border:1px solid var(--line);backgrou
      <button class="primary js-rebirth">Rebirth</button>
      <button class="primary js-maxrebirth">Max Rebirth</button>
      <button class="primary js-ascend">Ascend</button>
+     <button class="primary js-maxascend">Max Ascension</button>
     </div>
     <div class="notice" id="coreInfo"></div>
    </section>
@@ -190,7 +196,7 @@ select{padding:9px 11px;border-radius:10px;border:1px solid var(--line);backgrou
     <p class="muted" id="rebInfo"></p>
     <div class="controls" style="justify-content:flex-start"><button class="primary js-rebirth">Rebirth</button>
      <button class="primary js-maxrebirth">Max Rebirth</button></div>
-    <p class="muted">Rebirthing resets energy and upgrades. Each rebirth gives +20% to everything and Rebirth Points. You need rebirths to ascend, and ascending resets them.</p>
+    <p class="muted">Rebirthing resets energy and upgrades. Each rebirth gives +20% to everything and exactly 1 Rebirth Point (more while a global boost is running). You need rebirths to ascend, and ascending resets them.</p>
    </section>
    <section class="panel">
     <div class="panel-head"><h2>Rebirth Shop</h2></div>
@@ -210,7 +216,8 @@ select{padding:9px 11px;border-radius:10px;border:1px solid var(--line);backgrou
     <div class="panel-head"><h2>Ascension</h2><span class="muted" id="apCount">0 AP</span></div>
     <p class="muted" id="ascInfo"></p>
     <div class="notice" id="tierInfo" style="margin:10px 0">Current tier: Core · Next tier: Stellar at 5 ascensions.</div>
-    <div class="controls" style="justify-content:flex-start"><button class="primary js-ascend">Ascend</button></div>
+    <div class="controls" style="justify-content:flex-start"><button class="primary js-ascend">Ascend</button>
+     <button class="primary js-maxascend">Max Ascension</button></div>
     <p class="muted">Ascending resets your rebirths, Rebirth Points, energy, upgrades and rebirth shop levels, except rebirth upgrades you have fully maxed, which are kept. In return you get Ascension Points and a permanent multiplier.</p>
    </section>
    <section class="panel">
@@ -287,7 +294,7 @@ select{padding:9px 11px;border-radius:10px;border:1px solid var(--line);backgrou
    <section class="panel">
     <div class="panel-head"><h2>Your Profile</h2><span class="muted" id="lbConn"></span></div>
     <div class="warn" id="lbSetup" hidden>The leaderboard server isn't connected yet. Add your Supabase project URL and public key at the top of the script (see the setup notes). The rest of the game works without it.</div>
-    <div class="statrow"><span>Username</span><span id="lbName">Not set</span></div>
+    <div class="statrow"><span>Player ID</span><span id="lbName">Not set</span></div>
     <p class="muted">Your username is tied to your account and can't be changed. Press 💬 next to a player to start a private chat.</p>
     <p class="muted" id="lbSubmitInfo"></p>
 
@@ -306,13 +313,22 @@ select{padding:9px 11px;border-radius:10px;border:1px solid var(--line);backgrou
   <div class="grid2">
    <section class="panel">
     <div class="panel-head"><h2>Chats</h2><button id="chatRefresh">Refresh</button></div>
-    <p class="muted">Start a private chat by pressing the 💬 button next to a player in the Leaderboard tab. Messages are not filtered.</p>
     <div id="chatList"></div>
+    <details class="pick"><summary>New group chat</summary>
+     <div class="row"><input type="text" class="nocase" id="groupTitle" maxlength="30" placeholder="Group name"></div>
+     <div class="row"><input type="text" class="nocase" id="groupMembers" placeholder="Usernames, separated by commas"></div>
+     <div class="controls" style="justify-content:flex-start"><button class="primary" id="groupCreate">Create group</button></div>
+     <p class="notice" id="groupMsg"></p>
+    </details>
+    <p class="muted" style="margin-top:10px">Start a private chat with the 💬 button next to a player in the Leaderboard tab. There is no chat filter.</p>
    </section>
    <section class="panel">
-    <div class="panel-head"><h2 id="chatTitle">No chat selected</h2><span class="muted" id="chatStatus"></span></div>
+    <div class="panel-head"><h2 id="chatTitle">No chat selected</h2><span class="muted" id="chatSub"></span></div>
+    <div class="row" id="chatGroupBar" hidden><input type="text" class="nocase" id="groupAddName" maxlength="16" placeholder="Add a player"><button id="groupAdd">Add</button><button class="danger" id="groupLeave">Leave group</button></div>
     <div class="chatlog" id="chatLog"></div>
-    <div class="row"><input type="text" class="nocase" id="chatInput" maxlength="1000" placeholder="Message" autocomplete="off" disabled><button class="primary" id="chatSend" disabled>Send</button></div>
+    <div class="form-error" id="chatStatus" aria-live="polite"></div>
+    <div class="row"><button id="chatImgBtn" title="Send an image" disabled>📷</button><input type="text" class="nocase" id="chatInput" maxlength="1000" placeholder="Message (paste an image to send it)" autocomplete="off" disabled><button class="primary" id="chatSend" disabled>Send</button></div>
+    <input id="chatImgFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
    </section>
   </div>
  </section>
@@ -354,11 +370,15 @@ select{padding:9px 11px;border-radius:10px;border:1px solid var(--line);backgrou
    <p class="muted">These boosts affect every player connected to this Energy Lab server, including production and click power. They are stored in Supabase and expire automatically.</p>
    <div class="statrow"><span>Current server boost</span><strong id="serverBoostStatus">Checking server…</strong></div>
    <div class="controls" style="justify-content:flex-start">
+    <label class="switch"><input type="checkbox" id="boostStack"> Stack time (add to the running boost instead of replacing it)</label>
     <button class="primary server-boost-btn" data-mult="2" data-seconds="20">×2 · 20 sec</button>
     <button class="primary server-boost-btn" data-mult="5" data-seconds="60">×5 · 1 min</button>
     <button class="primary server-boost-btn" data-mult="2" data-seconds="300">×2 · 5 min</button>
     <button class="primary server-boost-btn" data-mult="5" data-seconds="900">×5 · 15 min</button>
     <button class="primary server-boost-btn" data-mult="10" data-seconds="3600">×10 · 1 hour</button>
+    <button class="server-boost-btn" data-mult="0" data-seconds="60" data-add="1">+1 min</button>
+    <button class="server-boost-btn" data-mult="0" data-seconds="300" data-add="1">+5 min</button>
+    <button class="server-boost-btn" data-mult="0" data-seconds="1800" data-add="1">+30 min</button>
     <button class="danger" id="serverBoostClear">End boost</button>
    </div>
    <p class="notice" id="serverBoostMsg">Server status will refresh automatically.</p>
@@ -389,27 +409,19 @@ select{padding:9px 11px;border-radius:10px;border:1px solid var(--line);backgrou
    <p class="form-error" id="settingsLoginError" aria-live="polite"></p>
    <div id="settingsLoginSignedIn" hidden>
     <p class="muted" id="settingsLoginName"></p>
+    <div id="accountSwitchPanel" hidden><h3 class="group">Switch account</h3><div id="accountSwitchList"></div></div>
     <div class="controls" style="justify-content:flex-start;margin-top:8px"><button class="danger" id="settingsLogoutBtn">Log out</button></div>
    </div>
   </section>
   <div class="grid2">
    <section class="panel">
     <div class="panel-head"><h2>Automation</h2></div>
-    <label class="switch"><input type="checkbox" id="autoUpC"> Auto-Upgrade: Clicks <span class="muted" id="autoUpCNote"></span></label>
-    <div class="row"></div>
-    <label class="switch"><input type="checkbox" id="autoUpG"> Auto-Upgrade: Generators <span class="muted" id="autoUpGNote"></span></label>
-    <div class="row"></div>
+    <p class="muted">Auto-Upgrade now lives on the Core tab, above each upgrade category.</p>
     <label class="switch"><input type="checkbox" id="autoRe"> Auto-Rebirth <span class="muted" id="autoReNote"></span></label>
     <div class="row"></div>
     <label class="switch"><input type="checkbox" id="autoAsc"> Auto-Ascend <span class="muted" id="autoAscNote"></span></label>
     <div class="row"></div>
     <label class="switch"><input type="checkbox" id="autoCl"> Auto-Claim Codes <span class="muted" id="autoClNote"></span></label>
-    <details class="pick">
-     <summary>Choose what Auto-Upgrade buys</summary>
-     <div class="controls" style="justify-content:flex-start;margin-top:8px"><button id="pickAll">Select all</button><button id="pickNone">Select none</button></div>
-     <div class="pick-grid" id="pickGrid"></div>
-     <p class="muted" style="margin-top:8px">Auto-Upgrade only buys the upgrades ticked here (and only in the Clicks / Generators groups you have switched on above).</p>
-    </details>
     <div class="row" style="margin-top:14px"></div>
     <label class="switch"><input type="checkbox" id="noGambleConfirm"> No gamble confirmation (skip the warning on big wagers)</label>
     <p class="muted" style="margin-top:12px">Unlocked automation does not turn on by itself. Switch it on here.</p>
@@ -423,6 +435,12 @@ select{padding:9px 11px;border-radius:10px;border:1px solid var(--line);backgrou
     </div>
     <input id="mp3File" type="file" accept="audio/mpeg,.mp3" hidden>
     <p class="muted" id="soundNote">Using the built-in blip. Custom sounds are MP3 only (max 1.5 MB). Since this is an HTML game, it might not work in every browser or embed.</p>
+   </section>
+   <section class="panel">
+    <div class="panel-head"><h2>Orb image</h2></div>
+    <div class="row"><button id="orbBtn">Upload orb image</button><button class="quiet" id="orbClear">Reset orb</button></div>
+    <input id="orbFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+    <p class="muted" id="orbNote">Pick any picture for the Energy Core. It is shrunk and saved in this browser only.</p>
    </section>
   </div>
   <section class="panel" style="margin-top:14px">
@@ -459,6 +477,7 @@ select{padding:9px 11px;border-radius:10px;border:1px solid var(--line);backgrou
    <button class="primary" id="gateSubmit" type="submit" style="width:100%">Log in</button>
   </form>
   <p class="gate-error" id="gateError" aria-live="polite"></p>
+  <div id="gateAccounts" hidden></div>
   <p class="muted" id="gateNote">Usernames are 3-16 letters, numbers or underscores and are tied to your account, so each name can only be used once. Passwords are at least 8 characters and are never sent in plain text. There is no password recovery, so keep yours safe.</p>
  </div>
 </div>
@@ -491,7 +510,7 @@ function shuffle(arr) {
 }
 
 /* ---------- constants ---------- */
-const VERSION = "6.0";
+const VERSION = "6.1";
 const SAVE_SCHEMA = 4;
 let KEY = "energyLabSave40", BAK1 = "energyLabSave40b", BAK2 = "energyLabSave40c";
 const LEGACY_ACCOUNT_SAVE_KEYS = [KEY, BAK1, BAK2];
@@ -614,10 +633,10 @@ const CODES = [
 const rItems = [
   {id:"overcharge",store:"rshop",cur:"rp",name:"Overcharge",base:1,growth:1.5,max:50,desc:l=>"+10% click power per level · now +"+l*10+"%"},
   {id:"generator",store:"rshop",cur:"rp",name:"Generator Tuning",base:1,growth:1.5,max:50,desc:l=>"+10% energy/sec per level · now +"+l*10+"%"},
-  {id:"pulse",store:"rshop",cur:"rp",name:"Pulse Accelerator",base:4,growth:1.65,max:10,desc:l=>"-10% production interval per level · now every "+Math.round(1000*Math.pow(0.9,l))+" ms"},
+  {id:"pulse",store:"rshop",cur:"rp",name:"Pulse Accelerator",base:4,growth:1.65,max:15,desc:l=>"-10% production interval per level · now every "+Math.round(1000*Math.pow(0.9,l))+" ms"},
   {id:"discount",store:"rshop",cur:"rp",name:"Bulk Pricing",base:2,growth:1.6,max:20,desc:l=>"-2% upgrade costs per level · now -"+l*2+"%"},
   {id:"headstart",store:"rshop",cur:"rp",name:"Head Start",base:3,growth:1.8,max:10,desc:l=>"Start each run with "+fmt(l*l*1000)+" energy"},
-  {id:"autoUp",unlock:"autoUpgrade",cur:"rp",name:"Auto-Upgrade",base:6,max:1,desc:()=>"Unlocks Auto-Upgrade for Clicks and Generators (kept through ascension)"},
+  {id:"autoUp",unlock:"autoUpgrade",cur:"rp",name:"Auto-Upgrade",base:6,max:1,desc:()=>"Unlocks Auto-Upgrade for Clicks and Generators, including Smart mode (kept through ascension)"},
   {id:"autoClaim",unlock:"autoClaim",cur:"rp",name:"Auto-Claim Codes",base:8,max:1,desc:()=>"Code popups are redeemed automatically (kept through ascension)"}
 ];
 const aItems = [
@@ -730,7 +749,7 @@ function releaseAccessGate() {
   $("accessGate").hidden = true;
 }
 
-const ID_RE = /^EL-[0-9A-F]{8}(?:-[0-9A-F]{4}){3}-[0-9A-F]{12}$/;
+const ID_RE = /^EL-[A-Za-z0-9_]{3,16}$/; // a player ID is now simply EL-<username>
 const USERNAME_RE = /^[A-Za-z0-9_]{3,16}$/;
 const OWNER_PLAYER_ID = "EL-13B6729B-7DF0-4369-A078-FAA9831EA890";
 const TESTACC_PLAYER_ID = "EL-06CC7F1E-0B48-4A28-85E5-FE70805620DB";
@@ -754,7 +773,7 @@ function setGuestSaveKeys() {
   USERNAME_KEY = "energyLabUsername56_GUEST";
 }
 function setSaveKeysForPlayer(id) {
-  const suffix = id.replace(/[^A-Z0-9]/g, "");
+  const suffix = id.replace(/[^A-Za-z0-9_]/g, "");
   KEY = "energyLabSave_" + suffix;
   BAK1 = KEY + "_b";
   BAK2 = KEY + "_c";
@@ -776,12 +795,14 @@ function applyIdentity(id, token, username, role) {
   store.remove("energyLabPlayerId40");
   store.remove("energyLabAccessPassword54");
   setSaveKeysForPlayer(id);
+  profile.username = username || store.get(USERNAME_KEY) || "";
   state = fresh();
   load();
   profile.state = "ok";
   resetSocial();
-  profile.username = username || store.get(USERNAME_KEY) || "";
   if (profile.username) store.set(USERNAME_KEY, profile.username);
+  rememberAccount(id, profile.username, token);
+  announceTab();
   lastSubmitSig = ""; lastSubmitAt = 0; lastSubmitOk = 0;
   Object.keys(lbCache).forEach(k => delete lbCache[k]);
   $("volume").value = Math.round(state.settings.volume * 100);
@@ -789,9 +810,73 @@ function applyIdentity(id, token, username, role) {
   refreshIdentityUI();
   renderProfile();
   refreshProfile();
-  refreshServerBoost();
+  liveTick();
   loadBoard(true);
   ui();
+}
+// ---- accounts remembered on this browser (for one-click switching) ----
+const ACCOUNTS_KEY = "energyLabAccounts6";
+function loadAccounts() { try { const a = JSON.parse(store.get(ACCOUNTS_KEY) || "[]"); return Array.isArray(a) ? a.filter(x => x && ID_RE.test(String(x.id)) && x.token) : []; } catch (e) { return []; } }
+function rememberAccount(id, username, token) {
+  const list = loadAccounts().filter(a => a.id !== id);
+  list.unshift({id, username:username || id.slice(3), token});
+  store.set(ACCOUNTS_KEY, JSON.stringify(list.slice(0, 8)));
+  renderAccountLists();
+}
+function forgetAccount(id) { store.set(ACCOUNTS_KEY, JSON.stringify(loadAccounts().filter(a => a.id !== id))); renderAccountLists(); }
+function renderAccountLists() {
+  for (const [rootId, hostId, current] of [["accountSwitchList", "accountSwitchPanel", PLAYER_ID], ["gateAccounts", "gateAccounts", ""]]) {
+    const root = $(rootId); if (!root) continue;
+    const list = loadAccounts().filter(a => a.id !== current);
+    root.innerHTML = "";
+    if (rootId === "accountSwitchList") $("accountSwitchPanel").hidden = !PLAYER_ID || list.length === 0;
+    else root.hidden = list.length === 0;
+    if (!list.length) continue;
+    if (rootId === "gateAccounts") { const h = el("p", "muted"); h.textContent = "Accounts already logged in on this browser:"; root.append(h); }
+    for (const a of list) {
+      const row = el("div", "codeitem"), b = el("button", "primary"), x = el("button", "quiet");
+      b.textContent = "Switch to " + a.username; b.addEventListener("click", () => switchToAccount(a));
+      x.textContent = "Forget"; x.title = "Remove from this list (does not log the account out on the server)"; x.addEventListener("click", () => forgetAccount(a.id));
+      row.append(b, x); root.append(row);
+    }
+  }
+}
+async function switchToAccount(a) {
+  try {
+    const r = await api("get_player_profile", {p_session_token:a.token});
+    if (!r || r.ok === false || !ID_RE.test(String(r.player_id || ""))) throw new Error("expired");
+    if (PLAYER_ID) save();
+    applyIdentity(r.player_id, a.token, r.username, r.role);
+    releaseAccessGate();
+    toast("Switched to " + r.username + ".");
+  } catch (e) {
+    forgetAccount(a.id);
+    toast("That session expired. Log in to " + a.username + " again.");
+  }
+}
+// ---- multi-tab: the newest tab wins, older tabs are signed out locally (the session itself is kept) ----
+const TAB_ID = Math.random().toString(36).slice(2);
+let myClaimAt = 0, tabChannel = null;
+try { tabChannel = new BroadcastChannel("energylab-tabs"); tabChannel.onmessage = e => onTabClaim(e.data); } catch (e) {}
+window.addEventListener("storage", e => { if (e.key === "energyLabTabClaim6" && e.newValue) { try { onTabClaim(JSON.parse(e.newValue)); } catch (err) {} } });
+function announceTab() {
+  myClaimAt = Date.now();
+  const msg = {type:"claim", id:TAB_ID, born:myClaimAt};
+  try { tabChannel && tabChannel.postMessage(msg); } catch (e) {}
+  try { localStorage.setItem("energyLabTabClaim6", JSON.stringify(msg)); } catch (e) {}
+}
+function onTabClaim(msg) {
+  if (!msg || msg.type !== "claim" || msg.id === TAB_ID || !PLAYER_ID) return;
+  if (Number(msg.born) > myClaimAt) kickThisTab("You were signed out here because Energy Lab was opened or switched in a newer tab.");
+}
+function kickThisTab(reason) {
+  if (!PLAYER_ID) return;
+  save(); resetSocial();
+  SESSION_TOKEN = ""; PLAYER_ID = ""; IS_OWNER = false; IS_TESTACC = false; // storage is left alone: the newer tab is using that session
+  profile.state = "signedout"; profile.username = "";
+  $("accessGate").hidden = false; document.body.classList.add("gate-locked");
+  $("gateError").textContent = reason;
+  refreshIdentityUI(); renderProfile(); renderAccountLists();
 }
 async function loginWithCredentials(username, password) {
   if (!USERNAME_RE.test(username)) throw new Error("Enter a valid account username.");
@@ -879,6 +964,7 @@ async function initAccessGate() {
   setMode(AUTH.settings, "login");
   $("settingsLogoutBtn").addEventListener("click", () => logout());
   $("gateUsername").focus();
+  renderAccountLists();
   // Reuse a saved server session only after the server validates it.
   if (SESSION_TOKEN && onlineOn()) {
     try {
@@ -905,7 +991,7 @@ const fresh = () => ({
   rebirths:0, totalRebirths:0, rp:0, rshop: zero(["overcharge","generator","discount","headstart","pulse"]),
   ascensions:0, ap:0, ashop: zero(["core","overdrive","efficient"]),
   unlocks:{autoUpgrade:false, autoRebirth:false, autoClaim:false, autoAscend:false},
-  settings:{autoUpgradeClick:false, autoUpgradeGen:false, autoPick:Object.fromEntries(upgrades.map(u => [u.id, true])), autoRebirth:false, autoAscend:false, autoClaim:false, noGambleConfirm:false, sound:false, volume:0.5},
+  settings:{autoUpgradeClick:false, autoUpgradeGen:false, smartClick:false, smartGen:false, autoPick:Object.fromEntries(upgrades.map(u => [u.id, true])), autoRebirth:false, autoAscend:false, autoClaim:false, noGambleConfirm:false, sound:false, volume:0.5},
   achieved:[], codes:[], challenge:{active:null, done:[], offers:[], rerolls:0},
   gamble:{plays:0, wins:0, jackpots:0},
   boost:{mult:1, until:0}, stats:{playtime:0}, last:Date.now()
@@ -979,14 +1065,16 @@ function currentAscensionTier() {
   return tier;
 }
 const ascensionTierMultiplier = () => currentAscensionTier().multiplier;
-const productionIntervalMs = () => Math.max(250, Math.round(1000 * Math.pow(0.9, rLvl("pulse"))));
+const productionIntervalMs = () => Math.max(200, Math.round(1000 * Math.pow(0.9, rLvl("pulse"))));
 const rebirthReqAt = n => Math.ceil(10000 * Math.pow(1.5, n) * Math.pow(0.9, aLvl("efficient")) * (chal() === "heavy" ? 2 : 1));
 const rebirthReq = () => rebirthReqAt(state.rebirths);
 const canRebirth = () => state.energy >= rebirthReq();
-const rpGain = () => Math.max(1, Math.floor(1 + 2 * Math.log10(Math.max(1, state.energy / rebirthReq()))));
+// 1 RP per rebirth and 1 AP per ascension, multiplied by an active global server boost
+const gainMult = () => serverBoostActive() ? serverBoost.multiplier : 1;
+const rpGain = () => Math.max(1, Math.round(gainMult()));
 const ascendReq = () => Math.ceil(10 * Math.pow(1.5, state.ascensions));
 const canAscend = () => !chal() && state.rebirths >= ascendReq();
-const apGain = () => Math.max(1, Math.floor(state.rebirths / 3));
+const apGain = () => Math.max(1, Math.round(gainMult()));
 
 let toastTimer = null;
 function toast(msg) { $("toast").textContent = msg; $("toast").classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(() => $("toast").classList.remove("show"), 2600); }
@@ -1079,6 +1167,7 @@ function sanitize(d) {
   const legacyUp = !!st.autoUpgrade;
   s.settings.autoUpgradeClick = st.autoUpgradeClick === undefined ? legacyUp : !!st.autoUpgradeClick;
   s.settings.autoUpgradeGen = st.autoUpgradeGen === undefined ? legacyUp : !!st.autoUpgradeGen;
+  s.settings.smartClick = !!st.smartClick; s.settings.smartGen = !!st.smartGen;
   s.settings.autoRebirth = !!st.autoRebirth; s.settings.autoClaim = !!st.autoClaim; s.settings.sound = !!st.sound;
   s.settings.autoAscend = !!st.autoAscend; s.settings.noGambleConfirm = !!st.noGambleConfirm;
   s.settings.autoPick = Object.fromEntries(upgrades.map(u => [u.id, !(st.autoPick && st.autoPick[u.id] === false)]));
@@ -1120,6 +1209,23 @@ function preAccountSave() {
   for (const g of groups) { const f = readSaveFrom(g); if (f && (!best || progressDiff(f.s, best.s) > 0)) best = f; }
   return best;
 }
+// Before V6.1 an account's local save was stored under its old random ID. Find those slots by username.
+function legacyAccountKeys(username) {
+  const out = [];
+  if (!username || store.mode !== "local") return out;
+  const pre = "energyLabUsername56_";
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith(pre) || k === USERNAME_KEY) continue;
+      if (String(localStorage.getItem(k) || "").toLowerCase() === username.toLowerCase()) {
+        const sfx = k.slice(pre.length);
+        out.push("energyLabSave_" + sfx, "energyLabSave_" + sfx + "_b", "energyLabSave_" + sfx + "_c");
+      }
+    }
+  } catch (e) {}
+  return out;
+}
 function load() {
   let found = readSaveFrom([KEY, BAK1, BAK2]), adopted = false;
   if (PLAYER_ID && !store.get(ADOPT_KEY)) {
@@ -1128,6 +1234,11 @@ function load() {
     store.set(ADOPT_KEY, PLAYER_ID);
   } else if (!PLAYER_ID && !found) {
     found = preAccountSave();
+  }
+  if (PLAYER_ID && profile.username && !store.get("energyLabIdMig6_" + KEY)) {
+    const lk = legacyAccountKeys(profile.username), oldId = lk.length ? readSaveFrom(lk) : null;
+    if (oldId && (!found || progressDiff(oldId.s, found.s) > 0)) { found = oldId; adopted = true; }
+    store.set("energyLabIdMig6_" + KEY, "1");
   }
   if (store.mode === "local") {
     const snd = store.get(SKEY) || store.get(LEGACY_SOUND_KEY);
@@ -1224,9 +1335,9 @@ function sellUp(u) {
 function resetRun() {
   state.energy = 0; state.owned = zero(upgrades.map(u => u.id));
   state.rebirths = 0; state.rp = 0;
-  // Rebirth upgrades that are fully maxed are kept; everything else resets.
-  const kept = zero(["overcharge","generator","discount","headstart"]);
-  for (const it of rItems) if (it.store && state.rshop[it.id] >= it.max) kept[it.id] = it.max;
+  // Rebirth upgrades at 80% of their max level or more are kept (at their current level); everything else resets.
+  const kept = zero(["overcharge","generator","discount","headstart","pulse"]);
+  for (const it of rItems) if (it.store && state.rshop[it.id] >= Math.ceil(it.max * 0.8)) kept[it.id] = state.rshop[it.id];
   state.rshop = kept;
 }
 function doRebirth(auto) {
@@ -1244,10 +1355,9 @@ function maxRebirthPlan() {
   while (n < 500) {
     const rq = rebirthReqAt(state.rebirths + n);
     if (!(e >= rq)) break;
-    gain += Math.max(1, Math.floor(1 + 2 * Math.log10(Math.max(1, e / rq))));
     e -= rq; n++;
   }
-  return {n, gain};
+  return {n, gain: n * rpGain()};
 }
 function doMaxRebirth() {
   const plan = maxRebirthPlan();
@@ -1256,6 +1366,23 @@ function doMaxRebirth() {
   state.owned = zero(upgrades.map(u => u.id));
   const hs = rLvl("headstart"); state.energy = hs * hs * 1000;
   checkAch(); ui(); save(); toast("Reborn ×" + plan.n + "! +" + plan.gain + " Rebirth Points.");
+}
+// Max Ascension: chain as many ascensions as your current rebirths can pay for, each at its own (rising) requirement.
+function maxAscendPlan() {
+  let e = state.rebirths, n = 0;
+  if (chal()) return {n:0, gain:0};
+  while (n < 200) {
+    const rq = Math.ceil(10 * Math.pow(1.5, state.ascensions + n));
+    if (!(e >= rq)) break;
+    e -= rq; n++;
+  }
+  return {n, gain: n * apGain()};
+}
+function doMaxAscend() {
+  const plan = maxAscendPlan();
+  if (plan.n < 1) return;
+  state.ascensions += plan.n; state.ap += plan.gain; resetRun();
+  checkAch(); ui(); save(); toast("Ascended ×" + plan.n + "! +" + plan.gain + " Ascension Points.");
 }
 function doAscend() {
   if (!canAscend()) return;
@@ -1471,7 +1598,7 @@ function renderProfile() {
   const on = onlineOn();
   $("lbSetup").hidden = on;
   $("lbConn").textContent = !on ? "Server: not connected" : profile.state === "offline" ? "Server: unreachable" : "Server: connected";
-  $("lbName").textContent = profile.username || (GUEST ? "Guest" : "Not set");
+  $("lbName").textContent = profile.username ? (PLAYER_ID || profile.username) : (GUEST ? "Guest" : "Not set");
   let info;
   if (!on) info = "Online features are off until the Supabase details are added.";
   else if (!PLAYER_ID) info = GUEST ? "You're playing without an account, so your score isn't on the leaderboards. Log in from Settings to appear on them." : "Log in to appear on the leaderboards.";
@@ -1494,15 +1621,16 @@ async function refreshServerBoost() {
   }
   ui();
 }
-async function setServerBoost(multiplier, seconds) {
+async function setServerBoost(multiplier, seconds, add) {
+  if (add && !multiplier) { if (!serverBoostActive()) { $("serverBoostMsg").textContent = "No boost is running. Start one with a ×N button first."; return; } multiplier = serverBoost.multiplier; }
   if (!SESSION_TOKEN || !IS_OWNER || !onlineOn()) return;
   document.querySelectorAll(".server-boost-btn").forEach(b => b.disabled = true);
   $("serverBoostClear").disabled = true;
   try {
-    const r = await api("set_server_boost", {p_multiplier:multiplier, p_duration_seconds:seconds});
+    const r = await api("set_server_boost", {p_multiplier:multiplier, p_duration_seconds:seconds, p_add:!!add});
     if (!r || !r.ok) throw new Error((r && r.error) || "The server rejected the boost.");
     await refreshServerBoost();
-    $("serverBoostMsg").textContent = seconds ? "Server-wide ×" + multiplier + " boost activated." : "Server-wide boost ended.";
+    $("serverBoostMsg").textContent = seconds ? (add ? "Added " + fmtTime(seconds) + " to the server-wide ×" + multiplier + " boost." : "Server-wide ×" + multiplier + " boost activated.") : "Server-wide boost ended.";
   } catch (e) {
     $("serverBoostMsg").textContent = "Boost failed: " + e.message;
   } finally {
@@ -1515,6 +1643,7 @@ async function setServerBoost(multiplier, seconds) {
 function handleSessionInvalid() {
   if (!PLAYER_ID && !SESSION_TOKEN) return;
   save();
+  if (PLAYER_ID) forgetAccount(PLAYER_ID);
   const token = SESSION_TOKEN;
   SESSION_TOKEN = "";
   store.remove(SESSION_TOKEN_KEY);
@@ -1624,7 +1753,8 @@ function renderBoard() {
     const rank = row.rank !== null && row.rank !== undefined && Number.isFinite(Number(row.rank)) ? Number(row.rank) : i + 1;
     const d = el("div", "lbrow" + (row.is_you ? " you" : "") + (pinned ? " pin" : "") + (!pinned && rank <= 3 ? " r" + rank : "")), a = el("span", "rk"), b = el("span", "nm"), v = el("span", "vl"), m = el("span", "mc");
     a.textContent = pinned ? "★" : "#" + rank;
-    b.textContent = (row.username || "Unknown") + (pinned ? " · test" : "") + (row.is_you ? " (you)" : "");
+    if (row.online !== undefined) { const dot = el("span", "dot" + (row.online ? "" : " off")); dot.title = row.online ? "Online" : "Offline"; b.append(dot); }
+    b.append(document.createTextNode((row.username || "Unknown") + (pinned ? " · test" : "") + (row.is_you ? " (you)" : "")));
     v.textContent = pinned ? "TEST" : row.display !== null && row.display !== undefined
       ? String(row.display)
       : fmtLbValue(row.format || board.format, row.value);
@@ -1661,11 +1791,16 @@ async function sendAnnouncement(text, secs) {
   } catch (e) { $("annMsg").textContent = "Couldn't send: " + e.message; }
 }
 
-const chatState = {chats:[], active:0, lastId:0, busy:false};
+const chatState = {chats:[], active:0, kind:"", lastId:0, busy:false, rendered:new Set(), muted:false};
+const IMG_OK = /^(https:\/\/[a-z0-9]{10,40}\.supabase\.co\/storage\/v1\/object\/public\/chat-images\/[A-Za-z0-9._-]{8,100}|data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+\/=]+)$/;
+const CHAT_ERRORS = {rate_limited:"Slow down a little.", muted:"You're muted right now.", not_member:"You're not in that chat.", bad_message:"That message isn't allowed.",
+  bad_image:"That image couldn't be sent.", bad_title:"Group names are 1-30 characters.", too_many:"A group holds up to 12 people.", too_many_groups:"You already own 10 groups.",
+  group_full:"That group is full.", no_such_user:"No player with that name.", invalid_session:"Please log in again."};
+const chatError = e => CHAT_ERRORS[e] || "The server rejected that (" + (e || "error") + ").";
 function resetSocial() {
-  chatState.chats = []; chatState.active = 0; chatState.lastId = 0;
-  $("chatLog").innerHTML = ""; $("chatList").innerHTML = ""; $("chatTitle").textContent = "No chat selected"; $("chatStatus").textContent = "";
-  $("chatInput").disabled = true; $("chatSend").disabled = true; $("chatNav").classList.remove("ping");
+  chatState.chats = []; chatState.active = 0; chatState.kind = ""; chatState.lastId = 0; chatState.rendered.clear(); chatState.muted = false;
+  $("chatLog").innerHTML = ""; $("chatList").innerHTML = ""; $("chatTitle").textContent = "No chat selected"; $("chatSub").textContent = ""; $("chatStatus").textContent = "";
+  $("chatInput").disabled = true; $("chatSend").disabled = true; $("chatImgBtn").disabled = true; $("chatGroupBar").hidden = true; $("chatNav").classList.remove("ping");
   duelState.open = []; duelState.mine = []; renderDuels();
   announce.active = false;
 }
@@ -1679,25 +1814,74 @@ async function refreshChats() {
     const open = !$("tab-chat").hidden;
     const unread = chatState.chats.reduce((n, c) => n + (open && c.chat_id === chatState.active ? 0 : Number(c.unread) || 0), 0);
     $("chatNav").classList.toggle("ping", unread > 0);
-    renderChatList();
+    if (open && !chatState.active) { const g = chatState.chats.find(c => c.kind === "global"); if (g) selectChat(g.chat_id, g.title, g.kind); }
+    renderChatList(); updateChatHeader();
   } catch (e) {}
+}
+function updateChatHeader() {
+  const c = chatState.chats.find(x => x.chat_id === chatState.active); if (!c) return;
+  $("chatSub").textContent = c.kind === "dm" ? (c.online ? "● online" : "offline") : c.kind === "group" ? c.members + " members" : "everyone can read this";
 }
 function renderChatList() {
   const root = $("chatList"); root.innerHTML = "";
   if (!chatState.chats.length) { const p = el("p", "muted"); p.textContent = "No chats yet."; root.append(p); return; }
-  for (const c of chatState.chats) {
-    const b = el("button", "chatrow" + (c.chat_id === chatState.active ? " on" : "")), t = el("b"), sm = el("small");
-    t.textContent = c.title || "Chat";
-    const un = Number(c.unread) > 0 && c.chat_id !== chatState.active ? "  ● " + c.unread : "";
-    sm.textContent = (c.last_body ? String(c.last_body).slice(0, 60) : "No messages yet") + un;
-    b.append(t, sm); b.addEventListener("click", () => selectChat(c.chat_id, c.title)); root.append(b);
+  for (const [label, kind] of [["", "global"], ["Groups", "group"], ["Direct messages", "dm"]]) {
+    const list = chatState.chats.filter(c => c.kind === kind); if (!list.length) continue;
+    if (label) { const h = el("h3", "group"); h.textContent = label; root.append(h); }
+    for (const c of list) {
+      const b = el("button", "chatrow" + (c.chat_id === chatState.active ? " on" : "")), t = el("b"), sm = el("small");
+      if (c.kind === "dm") { const dot = el("span", "dot" + (c.online ? "" : " off")); t.append(dot); }
+      t.append(document.createTextNode(c.title || "Chat"));
+      if (Number(c.unread) > 0 && c.chat_id !== chatState.active) { const bd = el("span", "badge"); bd.textContent = c.unread; t.append(bd); }
+      sm.textContent = c.last_body ? String(c.last_body).slice(0, 60) : "No messages yet";
+      b.append(t, sm); b.addEventListener("click", () => selectChat(c.chat_id, c.title, c.kind)); root.append(b);
+    }
   }
 }
-function selectChat(id, title) {
-  chatState.active = id; chatState.lastId = 0;
-  $("chatLog").innerHTML = ""; $("chatTitle").textContent = title || "Chat"; $("chatStatus").textContent = "";
-  $("chatInput").disabled = false; $("chatSend").disabled = false;
-  renderChatList(); loadMessages();
+function selectChat(id, title, kind) {
+  chatState.active = id; chatState.kind = kind || ""; chatState.lastId = 0; chatState.rendered.clear();
+  $("chatLog").innerHTML = ""; $("chatTitle").textContent = title || "Chat"; $("chatStatus").textContent = ""; $("chatSub").textContent = "";
+  $("chatInput").disabled = false; $("chatSend").disabled = false; $("chatImgBtn").disabled = false;
+  $("chatGroupBar").hidden = kind !== "group";
+  renderChatList(); updateChatHeader(); loadMessages();
+}
+function buildMsg(m, pending) {
+  const d = el("div", "chatmsg" + (m.mine ? " mine" : "") + (pending ? " pending" : ""));
+  const who = el("small");
+  who.textContent = (m.mine ? "You" : m.from) + " · " + new Date(m.at).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+  if (IS_OWNER && !m.mine && m.id) {
+    const mod = el("span", "mod"), del = el("button", "quiet"), mute = el("button", "quiet");
+    del.textContent = "🗑"; del.title = "Delete this message"; del.addEventListener("click", () => moderate("delete_message", {p_message_id:m.id}));
+    mute.textContent = "🔇 10m"; mute.title = "Mute " + m.from + " for 10 minutes"; mute.addEventListener("click", () => moderate("mute_player", {p_username:m.from, p_minutes:10}));
+    mod.append(del, mute); who.append(mod);
+  }
+  d.append(who);
+  if (m.deleted) { const x = el("div", "muted"); x.textContent = "[message deleted]"; d.append(x); return d; }
+  if (m.body) { const b = el("div", "cbody"); b.textContent = m.body; d.append(b); d.dataset.body = m.body; }
+  if (m.image && (m.local || IMG_OK.test(m.image))) {
+    const img = document.createElement("img"); img.src = m.image; img.alt = "image"; img.loading = "lazy";
+    img.addEventListener("click", () => img.classList.toggle("big"));
+    d.append(img);
+  }
+  return d;
+}
+async function moderate(fn, args) {
+  try { const r = await api(fn, args); $("chatStatus").textContent = r && r.ok ? "Done." : chatError(r && r.error); if (r && r.ok && fn === "delete_message") { chatState.lastId = 0; chatState.rendered.clear(); $("chatLog").innerHTML = ""; loadMessages(); } }
+  catch (e) { $("chatStatus").textContent = "Failed: " + e.message; }
+}
+function appendMessages(list) {
+  const log = $("chatLog"), stick = log.scrollTop + log.clientHeight >= log.scrollHeight - 40;
+  for (const m of list) {
+    chatState.lastId = Math.max(chatState.lastId, Number(m.id));
+    if (chatState.rendered.has(Number(m.id))) continue;
+    chatState.rendered.add(Number(m.id));
+    if (m.mine) { // replace my own instant "pending" echo
+      const echo = [...log.querySelectorAll(".chatmsg.pending")].find(x => (x.dataset.body || "") === (m.body || "") && !x.dataset.id);
+      if (echo && !m.image) echo.remove();
+    }
+    log.append(buildMsg(m, false));
+  }
+  if (stick) log.scrollTop = log.scrollHeight;
 }
 async function loadMessages() {
   if (!chatState.active || chatState.busy) return;
@@ -1706,27 +1890,64 @@ async function loadMessages() {
     const r = await api("get_chat", {p_chat_id:id, p_after_id:chatState.lastId});
     if (r && r.error === "invalid_session") { handleSessionInvalid(); return; }
     if (!r || !r.ok || id !== chatState.active) return;
-    const log = $("chatLog"), stick = log.scrollTop + log.clientHeight >= log.scrollHeight - 40;
-    for (const m of r.messages || []) {
-      const d = el("div", "chatmsg" + (m.mine ? " mine" : "")), who = el("small"), body = el("div", "cbody");
-      who.textContent = (m.mine ? "You" : m.from) + " · " + new Date(m.at).toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
-      body.textContent = m.body;
-      d.append(who, body); log.append(d);
-      chatState.lastId = Math.max(chatState.lastId, Number(m.id));
-    }
-    if (stick) log.scrollTop = log.scrollHeight;
+    appendMessages(r.messages || []);
   } catch (e) {} finally { chatState.busy = false; }
 }
+function echoFail(echo, text, err) {
+  echo.remove();
+  if (text !== undefined) $("chatInput").value = text;
+  $("chatStatus").textContent = chatError(err);
+}
 async function sendChat() {
-  const inp = $("chatInput"), text = inp.value;
-  if (!chatState.active || !text.trim()) return;
-  $("chatSend").disabled = true;
+  const inp = $("chatInput"), text = inp.value, chat = chatState.active;
+  if (!chat || !text.trim()) return;
+  inp.value = ""; $("chatStatus").textContent = "";
+  const log = $("chatLog"), echo = buildMsg({mine:true, body:text, at:new Date()}, true); log.append(echo); log.scrollTop = log.scrollHeight;
   try {
-    const r = await api("send_chat", {p_chat_id:chatState.active, p_body:text});
-    if (r && r.ok) { inp.value = ""; $("chatStatus").textContent = ""; await loadMessages(); }
-    else $("chatStatus").textContent = r && r.error === "rate_limited" ? "Slow down a little." : "Couldn't send (" + ((r && r.error) || "error") + ").";
-  } catch (e) { $("chatStatus").textContent = "Couldn't send: " + e.message; }
-  $("chatSend").disabled = false; inp.focus();
+    const r = await api("send_chat", {p_chat_id:chat, p_body:text});
+    if (r && r.ok) { echo.classList.remove("pending"); echo.dataset.id = r.id; chatState.rendered.add(Number(r.id)); lastLive = 0; }
+    else echoFail(echo, text, r && r.error);
+  } catch (e) { echoFail(echo, text, "network"); $("chatStatus").textContent = "Couldn't send: " + e.message; }
+  inp.focus();
+}
+function loadImg(file) { return new Promise((res, rej) => { const u = URL.createObjectURL(file), i = new Image(); i.onload = () => { URL.revokeObjectURL(u); res(i); }; i.onerror = () => { URL.revokeObjectURL(u); rej(new Error("That file isn't a readable image.")); }; i.src = u; }); }
+function canvasBlob(img, maxDim, q) {
+  const sc = Math.min(1, maxDim / Math.max(img.width, img.height)), c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(img.width * sc)); c.height = Math.max(1, Math.round(img.height * sc));
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+  return new Promise(res => c.toBlob(res, "image/jpeg", q));
+}
+const blobToDataUrl = b => new Promise((res, rej) => { const f = new FileReader(); f.onload = () => res(f.result); f.onerror = rej; f.readAsDataURL(b); });
+async function uploadChatImage(blob) {
+  const name = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(16).slice(2)) + ".jpg";
+  const base = SUPABASE_URL.replace(/\/+$/, ""), headers = {apikey:SUPABASE_ANON_KEY, "Content-Type":"image/jpeg"};
+  if (SUPABASE_ANON_KEY.startsWith("eyJ")) headers.Authorization = "Bearer " + SUPABASE_ANON_KEY;
+  const res = await fetch(base + "/storage/v1/object/chat-images/" + name, {method:"POST", headers, body:blob});
+  if (!res.ok) throw new Error("upload failed (" + res.status + ")");
+  return base + "/storage/v1/object/public/chat-images/" + name;
+}
+async function sendImageFile(file) {
+  const chat = chatState.active, status = $("chatStatus");
+  if (!chat || !file) return;
+  if (!/^image\//.test(file.type)) { status.textContent = "That isn't an image."; return; }
+  status.textContent = "Preparing image…";
+  let img; try { img = await loadImg(file); } catch (e) { status.textContent = e.message; return; }
+  let blob = await canvasBlob(img, 1280, 0.82); if (blob.size > 900000) blob = await canvasBlob(img, 960, 0.6);
+  const caption = $("chatInput").value; $("chatInput").value = "";
+  const log = $("chatLog"), local = URL.createObjectURL(blob), echo = buildMsg({mine:true, body:caption, image:local, local:true, at:new Date()}, true);
+  log.append(echo); log.scrollTop = log.scrollHeight; status.textContent = "Uploading…";
+  let url = null;
+  try { url = await uploadChatImage(blob); } catch (e) { url = null; }
+  if (!url) { // storage unavailable: fall back to a small inline copy
+    let dim = 640, q = 0.6;
+    for (let i = 0; i < 4 && !url; i++) { const b2 = await canvasBlob(img, dim, q); if (b2.size <= 140000) url = await blobToDataUrl(b2); dim = Math.round(dim * 0.75); q = Math.max(0.35, q - 0.1); }
+  }
+  if (!url) { echo.remove(); status.textContent = "Couldn't upload that image."; return; }
+  try {
+    const r = await api("send_chat", {p_chat_id:chat, p_body:caption, p_image:url});
+    if (r && r.ok) { echo.classList.remove("pending"); echo.dataset.id = r.id; chatState.rendered.add(Number(r.id)); status.textContent = ""; lastLive = 0; }
+    else { echo.remove(); status.textContent = chatError(r && r.error); }
+  } catch (e) { echo.remove(); status.textContent = "Couldn't send: " + e.message; }
 }
 async function openChatWith(username) {
   if (!PLAYER_ID || !username) return;
@@ -1735,8 +1956,43 @@ async function openChatWith(username) {
     if (!r || !r.ok) { toast(r && r.error === "self" ? "That's you!" : "Couldn't open that chat."); return; }
     document.querySelector('#nav button[data-tab="chat"]').click();
     await refreshChats();
-    selectChat(r.chat_id, r.with);
+    selectChat(r.chat_id, r.with, "dm");
   } catch (e) { toast("Couldn't open the chat: " + e.message); }
+}
+async function createGroup() {
+  const title = $("groupTitle").value.trim(), names = $("groupMembers").value.split(",").map(x => x.trim()).filter(Boolean), msg = $("groupMsg");
+  msg.textContent = "";
+  try {
+    const r = await api("create_group", {p_title:title, p_usernames:names});
+    if (!r || !r.ok) { msg.textContent = chatError(r && r.error); return; }
+    $("groupTitle").value = ""; $("groupMembers").value = ""; msg.textContent = "Group created (" + r.added + " added).";
+    await refreshChats(); selectChat(r.chat_id, r.title, "group");
+  } catch (e) { msg.textContent = "Couldn't create the group: " + e.message; }
+}
+async function groupAction(fn, args, done) {
+  try { const r = await api(fn, args); if (r && r.ok) done(); else $("chatStatus").textContent = chatError(r && r.error); }
+  catch (e) { $("chatStatus").textContent = "Failed: " + e.message; }
+}
+
+// One fast call returns boost, announcement, unread count and new messages for the open chat.
+let liveBusy = false, lastLive = 0;
+async function liveTick() {
+  if (liveBusy || !PLAYER_ID || !SESSION_TOKEN || !onlineOn()) return;
+  liveBusy = true;
+  try {
+    const open = !$("tab-chat").hidden && chatState.active, chatId = chatState.active;
+    const r = await api("get_live", open ? {p_chat_id:chatId, p_after_id:chatState.lastId} : {});
+    if (!r) return;
+    if (r.ok === false && SESSION_TOKEN) { handleSessionInvalid(); return; }
+    const b = r.boost || {}, bends = b.ends_at ? Date.parse(b.ends_at) : 0;
+    serverBoost = {multiplier:Number(b.multiplier) || 1, endsAt:Number.isFinite(bends) ? bends : 0, active:!!(b.active && bends > Date.now())};
+    const a = r.announce || {}, aends = a.ends_at ? Date.parse(a.ends_at) : 0;
+    announce.endsAt = Number.isFinite(aends) ? aends : 0; announce.message = a.message || ""; announce.active = !!(a.active && announce.endsAt > Date.now());
+    chatState.muted = !!r.muted;
+    $("chatNav").classList.toggle("ping", Number(r.unread) > 0);
+    if (open && chatId === chatState.active && r.messages) appendMessages(r.messages);
+    if (IS_OWNER) $("serverBoostMsg").textContent = serverBoostActive() ? "Server boost is active for everyone." : "No server-wide boost is active.";
+  } catch (e) {} finally { liveBusy = false; lastLive = Date.now(); }
 }
 
 const duelState = {open:[], mine:[]};
@@ -1845,7 +2101,7 @@ async function pollTestOverride() {
   try {
     const r = await api("get_test_override", {});
     if (!r || !r.ok) return;
-    const key = "energyLabTestRev6_" + PLAYER_ID.replace(/[^A-Z0-9]/g, ""), raw = store.get(key), seen = raw === null ? -1 : Number(raw);
+    const key = "energyLabTestRev6_" + PLAYER_ID.replace(/[^A-Za-z0-9_]/g, ""), raw = store.get(key), seen = raw === null ? -1 : Number(raw);
     if (!(Number(r.rev) > seen)) return;
     const bits = [];
     if (r.energy !== null && r.energy !== undefined) { state.energy = Math.max(0, Number(r.energy)); state.lifetime = Math.max(state.lifetime, state.energy); bits.push("energy"); }
@@ -1856,13 +2112,13 @@ async function pollTestOverride() {
   } catch (e) {}
 }
 
-let lastExtras = 0, lastChatPoll = 0, lastDuelPoll = 0;
+let lastExtras = 0, lastChatList = 0, lastDuelPoll = 0;
 function extrasTick(now) {
   if (!PLAYER_ID || !SESSION_TOKEN || !onlineOn()) return;
-  if (now - lastExtras >= 3000) { lastExtras = now; refreshAnnouncement(); pollTestOverride(); claimPayouts(); }
-  const chatOpen = !$("tab-chat").hidden;
-  if (chatOpen && now - lastChatPoll >= 2500) { lastChatPoll = now; loadMessages(); refreshChats(); }
-  else if (!chatOpen && now - lastChatPoll >= 15000) { lastChatPoll = now; refreshChats(); }
+  const chatOpen = !$("tab-chat").hidden, gap = document.hidden ? 5000 : chatOpen ? 1000 : 1500;
+  if (!liveBusy && now - lastLive >= gap) liveTick();
+  if (now - lastExtras >= 3000) { lastExtras = now; pollTestOverride(); claimPayouts(); }
+  if (now - lastChatList >= (chatOpen ? 4000 : 20000)) { lastChatList = now; refreshChats(); }
   if (!$("tab-gamble").hidden && now - lastDuelPoll >= 4000) { lastDuelPoll = now; refreshDuels(); }
 }
 
@@ -1902,6 +2158,7 @@ function renderRecover() {
 
 function logout() {
   save();
+  if (PLAYER_ID) forgetAccount(PLAYER_ID);
   resetSocial(); // keep the account's latest progress before signing out
   const token = SESSION_TOKEN;
   SESSION_TOKEN = "";
@@ -1944,6 +2201,12 @@ const upRefs = upgrades.map(u => ({u}));
   const groups = [["Click upgrades","click"],["Generators","rate"]];
   for (const [label, kind] of groups) {
     const h = el("h3"); h.className = "group"; h.textContent = label; root.append(h);
+    { const ids = kind === "click" ? {on:"autoUpC", note:"autoUpCNote", smart:"smartC", all:"pickAllC", none:"pickNoneC", grid:"pickGridC"} : {on:"autoUpG", note:"autoUpGNote", smart:"smartG", all:"pickAllG", none:"pickNoneG", grid:"pickGridG"};
+      const ctl = el("div", "autoctl");
+      ctl.innerHTML = '<label class="switch"><input type="checkbox" id="' + ids.on + '"> Auto-Upgrade <span class="muted" id="' + ids.note + '"></span></label>' +
+        '<label class="switch"><input type="checkbox" id="' + ids.smart + '"> Smart <span class="muted">(buys the best upgrade you can afford)</span></label>' +
+        '<details class="pick"><summary>Choose what it buys</summary><div class="controls" style="justify-content:flex-start;margin-top:8px"><button type="button" id="' + ids.all + '">Select all</button><button type="button" id="' + ids.none + '">Select none</button></div><div class="pick-grid" id="' + ids.grid + '"></div></details>';
+      root.append(ctl); }
     upgrades.filter(u => u.kind === kind).forEach(u => {
       const r = upRefs.find(x => x.u === u);
       r.row = el("div", "upgrade");
@@ -2013,22 +2276,21 @@ const statRefs = STATS.map(([label, fn]) => {
 });
 const navBtns = {}; document.querySelectorAll("#nav button").forEach(b => { navBtns[b.dataset.tab] = b; });
 
-/* auto-upgrade picker */
+/* auto-upgrade picker (one per category, on the Core tab) */
 const pickRefs = [];
 (function buildPicker() {
-  const grid = $("pickGrid");
-  for (const [label, kind] of [["Click upgrades", "click"], ["Generators", "rate"]]) {
-    const h = el("div", "pick-head"); h.textContent = label; grid.append(h);
-    for (const u of upgrades.filter(x => x.kind === kind)) {
+  for (const [kind, gridId, allId, noneId] of [["click","pickGridC","pickAllC","pickNoneC"], ["rate","pickGridG","pickAllG","pickNoneG"]]) {
+    const grid = $(gridId), list = upgrades.filter(x => x.kind === kind);
+    for (const u of list) {
       const lab = el("label"), box = document.createElement("input"); box.type = "checkbox";
       box.addEventListener("change", () => { state.settings.autoPick[u.id] = box.checked; save(); });
       lab.append(box, document.createTextNode(u.name)); grid.append(lab);
       pickRefs.push({u, box});
     }
+    $(allId).addEventListener("click", () => { for (const u of list) state.settings.autoPick[u.id] = true; ui(); save(); });
+    $(noneId).addEventListener("click", () => { for (const u of list) state.settings.autoPick[u.id] = false; ui(); save(); });
   }
 })();
-$("pickAll").addEventListener("click", () => { for (const u of upgrades) state.settings.autoPick[u.id] = true; ui(); save(); });
-$("pickNone").addEventListener("click", () => { for (const u of upgrades) state.settings.autoPick[u.id] = false; ui(); save(); });
 $("autoAsc").addEventListener("change", e => { state.settings.autoAscend = e.target.checked; save(); });
 $("noGambleConfirm").addEventListener("change", e => { state.settings.noGambleConfirm = e.target.checked; save(); });
 
@@ -2064,7 +2326,8 @@ function refreshIdentityUI() {
   $("settingsLoginError").hidden = !!PLAYER_ID;
   $("settingsLoginSignedIn").hidden = !PLAYER_ID;
   $("settingsLoginState").textContent = PLAYER_ID ? "Signed in" : GUEST ? "Playing as guest" : "Signed out";
-  $("settingsLoginName").textContent = PLAYER_ID ? "Signed in as " + (IS_OWNER ? "the Owner account" : IS_TESTACC ? "the TestAcc account" : "an account") + (profile.username ? " (" + profile.username + ")" : "") + "." : "";
+  $("settingsLoginName").textContent = PLAYER_ID ? "Signed in as " + (IS_OWNER ? "the Owner account" : IS_TESTACC ? "the TestAcc account" : "an account") + (profile.username ? " (" + PLAYER_ID + ")" : "") + "." : "";
+  renderAccountLists();
   $("ownerBadge").hidden = !IS_OWNER;
   $("adminNav").hidden = !(IS_OWNER || IS_TESTACC);
   $("testLabPanel").hidden = !IS_TESTACC;
@@ -2131,6 +2394,7 @@ function ui() {
     btn.disabled = !canAscend();
     btn.textContent = chal() ? "Ascend (locked in challenge)" : "Ascend · " + state.rebirths + "/" + ascendReq() + " rebirths" + (canAscend() ? " · +" + apGain() + " AP" : "");
   });
+  { const ap = maxAscendPlan(); document.querySelectorAll(".js-maxascend").forEach(btn => { btn.disabled = ap.n < 2; btn.textContent = ap.n >= 2 ? "Max Ascension · ×" + ap.n + " · +" + ap.gain + " AP" : "Max Ascension"; }); }
   const pct = Math.min(100, state.energy / rq * 100);
   $("rebBar").style.width = pct + "%";
   $("rebBarTxt").textContent = canRebirth() ? "Rebirth is ready!" : "Next rebirth: " + (pct < 10 ? pct.toFixed(1) : Math.floor(pct)) + "% · " + fmt(state.energy) + " / " + fmt(rq);
@@ -2186,12 +2450,14 @@ function ui() {
   const s = state.settings, un = state.unlocks;
   $("autoUpC").disabled = !un.autoUpgrade; $("autoUpC").checked = un.autoUpgrade && s.autoUpgradeClick;
   $("autoUpG").disabled = !un.autoUpgrade; $("autoUpG").checked = un.autoUpgrade && s.autoUpgradeGen;
+  $("smartC").disabled = !un.autoUpgrade; $("smartC").checked = un.autoUpgrade && s.smartClick;
+  $("smartG").disabled = !un.autoUpgrade; $("smartG").checked = un.autoUpgrade && s.smartGen;
   $("autoUpCNote").textContent = $("autoUpGNote").textContent = un.autoUpgrade ? "" : "(locked · Rebirth Shop)";
   $("autoAsc").disabled = !un.autoAscend; $("autoAsc").checked = un.autoAscend && s.autoAscend;
   $("autoAscNote").textContent = un.autoAscend ? "" : "(locked · Ascension Shop)";
   $("noGambleConfirm").checked = !!s.noGambleConfirm;
   for (const r of pickRefs) { r.box.checked = s.autoPick[r.u.id] !== false; r.box.disabled = !un.autoUpgrade; }
-  $("pickAll").disabled = $("pickNone").disabled = !un.autoUpgrade;
+  for (const id of ["pickAllC","pickNoneC","pickAllG","pickNoneG"]) $(id).disabled = !un.autoUpgrade;
   $("autoRe").disabled = !un.autoRebirth; $("autoRe").checked = un.autoRebirth && s.autoRebirth;
   $("autoReNote").textContent = un.autoRebirth ? "" : "(locked · Ascension Shop)";
   $("autoCl").disabled = !un.autoClaim; $("autoCl").checked = un.autoClaim && s.autoClaim;
@@ -2209,12 +2475,19 @@ $("testEnergyBtn").addEventListener("click", () => { if (!IS_TESTACC) return; st
 $("testRPBtn").addEventListener("click", () => { if (!IS_TESTACC) return; state.rp += 100000; ui(); save(); });
 $("testAPBtn").addEventListener("click", () => { if (!IS_TESTACC) return; state.ap += 100000; ui(); save(); });
 $("testMaxBtn").addEventListener("click", () => { if (!IS_TESTACC) return; for (const u of upgrades) state.owned[u.id] = UPGRADE_CAP; ui(); save(); });
-document.querySelectorAll(".server-boost-btn").forEach(b => b.addEventListener("click", () => setServerBoost(Number(b.dataset.mult), Number(b.dataset.seconds))));
+document.querySelectorAll(".server-boost-btn").forEach(b => b.addEventListener("click", () => setServerBoost(Number(b.dataset.mult), Number(b.dataset.seconds), b.dataset.add === "1" || $("boostStack").checked)));
 $("serverBoostClear").addEventListener("click", () => setServerBoost(1, 0));
 
 $("chatSend").addEventListener("click", sendChat);
 $("chatInput").addEventListener("keydown", e => { if (e.key === "Enter") sendChat(); });
 $("chatRefresh").addEventListener("click", () => { refreshChats(); loadMessages(); });
+$("chatImgBtn").addEventListener("click", () => $("chatImgFile").click());
+$("chatImgFile").addEventListener("change", e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) sendImageFile(f); });
+$("chatInput").addEventListener("paste", e => { const it = [...(e.clipboardData ? e.clipboardData.items : [])].find(x => x.type && x.type.startsWith("image/")); if (it) { e.preventDefault(); sendImageFile(it.getAsFile()); } });
+$("groupCreate").addEventListener("click", createGroup);
+$("groupAdd").addEventListener("click", () => { const n = $("groupAddName").value.trim(); if (!n) return; groupAction("add_to_group", {p_chat_id:chatState.active, p_username:n}, () => { $("groupAddName").value = ""; $("chatStatus").textContent = n + " added."; refreshChats(); }); });
+$("groupLeave").addEventListener("click", () => confirmBox("Leave this group?", () => groupAction("leave_chat", {p_chat_id:chatState.active}, () => { const was = chatState.active; resetChatSelection(was); refreshChats(); })));
+function resetChatSelection() { chatState.active = 0; chatState.kind = ""; $("chatLog").innerHTML = ""; $("chatTitle").textContent = "No chat selected"; $("chatSub").textContent = ""; $("chatInput").disabled = true; $("chatSend").disabled = true; $("chatImgBtn").disabled = true; $("chatGroupBar").hidden = true; }
 $("duelCreate").addEventListener("click", createDuel);
 $("duelStake").addEventListener("keydown", e => { if (e.key === "Enter") createDuel(); });
 $("duelRefresh").addEventListener("click", refreshDuels);
@@ -2222,10 +2495,41 @@ $("annSend").addEventListener("click", () => sendAnnouncement($("annText").value
 $("annClear").addEventListener("click", () => sendAnnouncement("", 0));
 $("recoverScan").addEventListener("click", renderRecover);
 
+const ORB_KEY = "energyLabOrbImg6";
+function applyOrbImage(url) {
+  const o = $("orb");
+  if (url) { o.style.backgroundImage = 'url("' + url + '")'; o.style.backgroundSize = "cover"; o.style.backgroundPosition = "center"; o.classList.add("custom"); }
+  else { o.style.backgroundImage = ""; o.style.backgroundSize = ""; o.style.backgroundPosition = ""; o.classList.remove("custom"); }
+}
+$("orbBtn").addEventListener("click", () => $("orbFile").click());
+$("orbClear").addEventListener("click", () => { store.remove(ORB_KEY); applyOrbImage(""); $("orbNote").textContent = "Back to the default orb."; });
+$("orbFile").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  if (!/^image\//.test(f.type)) { $("orbNote").textContent = "That isn't an image."; return; }
+  const img = new Image(), url = URL.createObjectURL(f);
+  img.onload = () => {
+    try {
+      const size = 384, c = document.createElement("canvas"); c.width = c.height = size;
+      const g = c.getContext("2d"), m = Math.min(img.width, img.height);
+      g.drawImage(img, (img.width - m) / 2, (img.height - m) / 2, m, m, 0, 0, size, size);
+      let data = c.toDataURL("image/webp", 0.88); if (!data.startsWith("data:image/webp")) data = c.toDataURL("image/jpeg", 0.88);
+      store.set(ORB_KEY, data); applyOrbImage(data); $("orbNote").textContent = "Orb image saved.";
+    } catch (err) { $("orbNote").textContent = "Couldn't use that image."; }
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = () => { $("orbNote").textContent = "Couldn't read that image."; URL.revokeObjectURL(url); };
+  img.src = url;
+});
+applyOrbImage(store.get(ORB_KEY) || "");
 $("orb").addEventListener("click", clickCore);
 
 document.querySelectorAll(".js-rebirth").forEach(b => b.addEventListener("click", () => doRebirth(false)));
 document.querySelectorAll(".js-maxrebirth").forEach(b => b.addEventListener("click", doMaxRebirth));
+document.querySelectorAll(".js-maxascend").forEach(b => b.addEventListener("click", () => {
+  const plan = maxAscendPlan(); if (plan.n < 2) return;
+  confirmBox("Max Ascend ×" + plan.n + "? You gain " + plan.gain + " Ascension Points. Rebirths, Rebirth Points, energy, upgrades and non-kept rebirth shop levels reset.", doMaxAscend);
+}));
 document.querySelectorAll(".js-ascend").forEach(b => b.addEventListener("click", () => {
   if (!canAscend()) return;
   confirmBox("Ascend now? You gain " + apGain() + " Ascension Points and a permanent boost. Rebirths, Rebirth Points, energy, upgrades and non-maxed rebirth shop levels reset.", doAscend);
@@ -2234,7 +2538,7 @@ document.querySelectorAll("#nav button").forEach(b => b.addEventListener("click"
   document.querySelectorAll("#nav button").forEach(x => x.classList.toggle("on", x === b));
   document.querySelectorAll("section[id^=tab-]").forEach(t => t.hidden = t.id !== "tab-" + b.dataset.tab);
   if (b.dataset.tab === "leaderboard") onLeaderboardOpen();
-  if (b.dataset.tab === "chat") { refreshChats(); loadMessages(); }
+  if (b.dataset.tab === "chat") { refreshChats(); lastLive = 0; }
   if (b.dataset.tab === "gamble") { refreshDuels(); claimPayouts(); }
 }));
 $("chRerollBtn").addEventListener("click", rerollOffers);
@@ -2244,6 +2548,8 @@ $("lbRefresh").addEventListener("click", async () => { await submitScore(true); 
 $("logoutBtn").addEventListener("click", logout);
 $("autoUpC").addEventListener("change", e => { state.settings.autoUpgradeClick = e.target.checked; save(); });
 $("autoUpG").addEventListener("change", e => { state.settings.autoUpgradeGen = e.target.checked; save(); });
+$("smartC").addEventListener("change", e => { state.settings.smartClick = e.target.checked; save(); });
+$("smartG").addEventListener("change", e => { state.settings.smartGen = e.target.checked; save(); });
 $("autoRe").addEventListener("change", e => { state.settings.autoRebirth = e.target.checked; save(); });
 $("autoCl").addEventListener("change", e => { state.settings.autoClaim = e.target.checked; save(); });
 $("soundOn").addEventListener("change", e => { state.settings.sound = e.target.checked; save(); });
@@ -2312,18 +2618,21 @@ initAccessGate();
 
 let lastT = Date.now(), productionElapsedMs = 0, lastAuto = 0, lastOnlineCheck = 0, nextRoll = Date.now() + 60000, nextCode = Date.now() + rand(CODE_FIRST[0], CODE_FIRST[1]);
 function autoBuy() {
-  const kinds = [];
-  if (state.settings.autoUpgradeClick) kinds.push("click");
-  if (state.settings.autoUpgradeGen) kinds.push("rate");
-  if (!kinds.length) return;
-  for (let i = 0; i < 30; i++) {
-    let best = null, bp = Infinity;
-    for (const u of upgrades) {
-      if (!kinds.includes(u.kind) || state.settings.autoPick[u.id] === false || !canBuyType(u) || state.owned[u.id] >= upgradeCap()) continue;
-      const p = cost(u); if (p <= state.energy && p < bp) { best = u; bp = p; }
+  const groups = [];
+  if (state.settings.autoUpgradeClick) groups.push({kind:"click", smart:state.settings.smartClick});
+  if (state.settings.autoUpgradeGen) groups.push({kind:"rate", smart:state.settings.smartGen});
+  for (const g of groups) {
+    for (let i = 0; i < 30; i++) {
+      let best = null, bp = Infinity;
+      for (const u of upgrades) {
+        if (u.kind !== g.kind || state.settings.autoPick[u.id] === false || !canBuyType(u) || state.owned[u.id] >= upgradeCap()) continue;
+        const p = cost(u); if (p > state.energy) continue;
+        // Smart: the strongest upgrade you can afford right now. Normal: the cheapest.
+        if (!best || (g.smart ? (u.amount > best.amount || (u.amount === best.amount && p < bp)) : p < bp)) { best = u; bp = p; }
+      }
+      if (!best) break;
+      state.energy -= bp; state.owned[best.id]++;
     }
-    if (!best) break;
-    state.energy -= bp; state.owned[best.id]++;
   }
 }
 setInterval(() => {
@@ -2334,20 +2643,6 @@ setInterval(() => {
     const g = rate(true) * dt;
     productionElapsedMs = 0;
     if (g > 0) { state.energy += g; state.lifetime += g; toast("Welcome back! +" + fmt(g) + " energy while you were away."); }
-  } else {
-    const currentRate = rate();
-    if (currentRate > 0) {
-      productionElapsedMs += raw * 1000;
-      let interval = productionIntervalMs();
-      while (productionElapsedMs >= interval) {
-        const g = rate() * interval / 1000;
-        if (g > 0) { state.energy += g; state.lifetime += g; }
-        productionElapsedMs -= interval;
-        interval = productionIntervalMs();
-      }
-    } else {
-      productionElapsedMs = 0;
-    }
   }
   if (state.unlocks.autoUpgrade && now - lastAuto >= 500) { lastAuto = now; autoBuy(); }
   if (state.unlocks.autoRebirth && state.settings.autoRebirth && canRebirth()) doRebirth(true);
@@ -2366,7 +2661,7 @@ setInterval(() => {
     }
   }
   if (chipUntil && now > chipUntil) { $("codeChip").hidden = true; chipUntil = 0; }
-  if (now - lastOnlineCheck >= 3000) { lastOnlineCheck = now; submitScore(false); renderProfile(); refreshServerBoost();
+  if (now - lastOnlineCheck >= 3000) { lastOnlineCheck = now; submitScore(false); renderProfile();
     if (!$("tab-leaderboard").hidden) {
       // keep the open leaderboard live: re-fetch every 15s while it is visible
       if (!document.hidden && now - lastBoardFetch >= 15000) loadBoard(true); else renderBoard();
@@ -2375,6 +2670,22 @@ setInterval(() => {
   extrasTick(now);
   checkAch(); ui(); updateStatus();
 }, 250);
+// Energy payouts run on their own fast timer so the Pulse Accelerator ticks evenly (no 3-then-pause stutter).
+let lastProdT = Date.now();
+setInterval(() => {
+  const now = Date.now(), raw = Math.max(0, (now - lastProdT) / 1000); lastProdT = now;
+  if (raw > 30) { productionElapsedMs = 0; return; } // away: the main loop credits offline energy
+  if (!(rate() > 0)) { productionElapsedMs = 0; return; }
+  productionElapsedMs += raw * 1000;
+  let interval = productionIntervalMs(), paid = false;
+  while (productionElapsedMs >= interval) {
+    const g = rate() * interval / 1000;
+    if (g > 0) { state.energy += g; state.lifetime += g; paid = true; }
+    productionElapsedMs -= interval;
+    interval = productionIntervalMs();
+  }
+  if (paid) $("energy").textContent = fmt(state.energy);
+}, 40);
 setInterval(save, 10000);
 document.addEventListener("visibilitychange", () => { if (document.hidden) save(); });
 window.addEventListener("pagehide", save);
